@@ -5,5 +5,6 @@ from app.models.comment import TaskComment
 from app.models.tag import TaskTag
 from app.models.history import TaskHistory
 from app.models.time_entry import TimeEntry
+from app.models.note import Note
 
-__all__ = ["Base", "User", "Task", "TaskComment", "TaskTag", "TaskHistory", "TimeEntry"]
+__all__ = ["Base", "User", "Task", "TaskComment", "TaskTag", "TaskHistory", "TimeEntry", "Note"]

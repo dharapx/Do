@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, func, or_, and_
 from sqlalchemy.orm import selectinload
 
+from app.cache import cached, invalidate_dashboard_cache
 from app.database import SessionLocal
 from app.models.task import Task
 from app.models.tag import TaskTag
@@ -69,9 +70,8 @@ class CRUDTask:
         db.add(history)
         db.commit()
         db.refresh(task)
+        invalidate_dashboard_cache()
         return task
-
-    def get(self, db: SessionLocal, task_id: int, user_id: int) -> Task | None:
         stmt = (
             select(Task)
             .options(
@@ -349,6 +349,7 @@ class CRUDTask:
             db.commit()
             db.refresh(goal)
 
+        invalidate_dashboard_cache()
         return goal
 
     def set_parent(
@@ -382,6 +383,7 @@ class CRUDTask:
 
         db.commit()
         db.refresh(task)
+        invalidate_dashboard_cache()
         return task
 
     def delete(self, db: SessionLocal, task_id: int, user_id: int) -> bool:
@@ -391,8 +393,10 @@ class CRUDTask:
             return False
         db.delete(task)
         db.commit()
+        invalidate_dashboard_cache()
         return True
 
+    @cached(30)
     def get_dashboard_stats(self, db: SessionLocal, user_id: int, date_from: str | None = None, date_to: str | None = None) -> dict:
         base_conditions = [Task.user_id == user_id]
         if date_from:

@@ -185,6 +185,22 @@ Response:
 
 Returns daily time totals per task for chart rendering.
 
+Supports `date_from` and `date_to` query params.
+
+Response:
+```json
+{
+  "timeline": [
+    {
+      "date": "2026-06-10",
+      "entries": [
+        { "task_id": 1, "title": "Task title", "duration": 3600 }
+      ]
+    }
+  ]
+}
+```
+
 ## Comments
 
 ### List Comments

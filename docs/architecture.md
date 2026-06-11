@@ -55,7 +55,11 @@ graph TB
                 S_HISTORY["HistoryResponse"]
             end
 
-            CACHE["Dashboard Cache<br/>(in-memory TTL 30s)"]
+            CACHE["cache.py<br/>Redis-backed dashboard cache<br/>TTL 30s"]
+        end
+
+        subgraph PGB["PgBouncer Layer"]
+            PGBOUNCER["PgBouncer<br/>port 5432 (container)<br/>Transaction pooling<br/>pool_size=25<br/>max_client_conn=200<br/>scram-sha-256 auth"]
         end
 
         subgraph Database["Database Layer"]
@@ -68,8 +72,13 @@ graph TB
             end
         end
 
+        subgraph CacheLayer["Cache Layer"]
+            REDIS["Redis 7 Alpine<br/>port 6379<br/>AOF persistence<br/>save 60 1"]
+        end
+
         subgraph Volumes["Persistent Storage"]
             PG_DATA["postgres_data<br/>/var/lib/postgresql/data"]
+            REDIS_DATA["redis_data<br/>/data"]
         end
     end
 
@@ -79,9 +88,11 @@ graph TB
     API --> CRUD
     CRUD --> MODELS
     MODELS --> SCHEMAS
-    CRUD -->|SQLAlchemy<br/>pool_size=10, overflow=20| POSTGRES
-    CRUD_TASK -.->|reads| CACHE
+    CRUD -->|SQLAlchemy<br/>pool_size=10, overflow=20| PGBOUNCER
+    PGBOUNCER -->|:5432| POSTGRES
+    CRUD_TASK -.->|get/set cache| REDIS
     POSTGRES --> PG_DATA
+    REDIS --> REDIS_DATA
 ```
 
 ## Frontend Architecture
@@ -161,7 +172,7 @@ graph TB
         end
 
         subgraph API["API Client Layer"]
-            CLIENT["api/client.ts<br/>(fetch wrapper + JWT)"]
+            CLIENT["api/client.ts<br/>(fetch wrapper + JWT, get/post/patch/put/delete)"]
             TASKS_API["tasks.ts"]
             NOTES_API["notes.ts"]
             COMMENTS_API["comments.ts"]
@@ -234,13 +245,25 @@ graph TB
         end
 
         subgraph CONFIG["Configuration"]
-            SETTINGS["Settings<br/>DATABASE_URL · SECRET_KEY<br/>CORS_ORIGINS · API_V1_PREFIX"]
+            SETTINGS["Settings<br/>DATABASE_URL · SECRET_KEY<br/>CORS_ORIGINS · REDIS_URL<br/>API_V1_PREFIX"]
         end
+
+        subgraph CACHE_LAYER["Caching"]
+            CACHE["cache.py<br/>Redis client<br/>get_dashboard_cache()<br/>set_dashboard_cache()<br/>TTL=30s"]
+        end
+    end
+
+    subgraph PGBOUNCER_DIAGRAM["Connection Pooling"]
+        PGB["PgBouncer<br/>Transaction mode<br/>25 pool · 200 max clients"]
     end
 
     subgraph DB["Database Layer"]
         ENGINE["SQLAlchemy Engine<br/>pool_size=10, overflow=20<br/>pool_recycle=3600<br/>pool_pre_ping=True"]
-        ALEMBIC["Alembic Migrations<br/>6 migration files"]
+        ALEMBIC["Alembic Migrations<br/>7 migration files"]
+    end
+
+    subgraph REDIS_DIAGRAM["Redis Cache"]
+        RS["Redis 7 Alpine<br/>port 6379<br/>AOF persistence<br/>db 0"]
     end
 
     APP --> MIDDLEWARE
@@ -250,8 +273,11 @@ graph TB
     ROUTES --> BUSINESS
     BUSINESS --> SCHEMAS
     BUSINESS --> ENGINE
-    ENGINE --> POSTGRES["PostgreSQL 15"]
-    ALEMBIC --> POSTGRES
+    BUSINESS -.-> CACHE_LAYER
+    ENGINE --> PGB
+    PGB --> POSTGRES_DB["PostgreSQL 15"]
+    ALEMBIC --> POSTGRES_DB
+    CACHE_LAYER --> RS
 ```
 
 ## Database Schema
@@ -349,13 +375,40 @@ erDiagram
 
 ## Indexes
 
+Migration `0005_add_composite_indexes.py` created 8 indexes targeting the most common query patterns:
+
 | Index Name | Table | Columns | Type | Purpose |
 |---|---|---|---|---|
-| `ix_tasks_user_status` | tasks | `(user_id, status)` | B-tree | Filter by status |
-| `ix_tasks_user_priority` | tasks | `(user_id, priority)` | B-tree | Filter by priority |
+| `ix_tasks_user_status` | tasks | `(user_id, status)` | B-tree | Filter by status (done/in_progress) |
+| `ix_tasks_user_priority` | tasks | `(user_id, priority)` | B-tree | Filter by priority (urgent/high) |
 | `ix_tasks_user_created` | tasks | `(user_id, created_at)` | B-tree | Sort by created date |
-| `ix_tasks_user_updated` | tasks | `(user_id, updated_at)` | B-tree | Date range filters |
-| `ix_history_task_created` | task_history | `(task_id, created_at)` | B-tree | History chronology |
+| `ix_tasks_user_updated` | tasks | `(user_id, updated_at)` | B-tree | Date range filters on dashboard |
+| `ix_history_task_created` | task_history | `(task_id, created_at)` | B-tree | History chronology for a task |
 | `ix_time_task_created` | time_entries | `(task_id, created_at)` | B-tree | Time entry chronology |
-| `ix_notes_user_updated` | notes | `(user_id, updated_at)` | B-tree | Notes list sorting |
-| `ix_notes_content_trgm` | notes | `content` | GIN (`gin_trgm_ops`) | Full-text search / RAG |
+| `ix_notes_user_updated` | notes | `(user_id, updated_at)` | B-tree | Notes list sorted by update time |
+| `ix_notes_content_trgm` | notes | `content` | GIN (`gin_trgm_ops`) | Trigram full-text search on note content |
+
+## Key Decisions
+
+### Architecture
+- **PgBouncer over direct Postgres** — Prevents connection RAM exhaustion at scale (Instagram's lesson: each PG connection costs ~5MB). Backend connects to `pgbouncer:5432` (transaction pooling, 25 pool size, 200 max clients). Postgres itself stays at `max_connections=100` but PgBouncer multiplexes many more client connections.
+- **Redis over in-memory dict** — Dashboard stats cache (30s TTL) moved from Python dict to Redis: survives container restarts, shared across multiple backend instances, native TTL eviction with `decode_responses=True`.
+- **Connection pool** — SQLAlchemy `pool_size=10`, `max_overflow=20`, `pool_recycle=3600`, `pool_pre_ping=True`. All references go through PgBouncer which pools onto 25 PG connections.
+- **GIN trigram index** — On `notes.content` for fast substring/fuzzy search. Chosen over `tsvector` for simplicity: trigram handles partial matches and typos without a separate search index.
+
+### API Design
+- **UTC + Z suffix** — API returns `2026-06-11T05:34:45.780718Z`. Backend uses `datetime.utcnow()`. Frontend converts to browser local timezone via `date-fns format()`.
+- **Comma-separated multi-select** — Filter params like `?status=done,not_started` rather than array query params, avoiding URL parsing ambiguity.
+- **Dedicated goal management endpoints** — `POST /tasks/{goal_id}/children` (bulk replace children) and `PUT /tasks/{task_id}/parent` (link/unlink) instead of individual PATCH calls, ensuring atomicity and server-side validation.
+- **Separate response schemas** — `TaskResponse` includes `children[]` (for detail view), `TaskListItem` omits it (for list view), minimizing payload.
+
+### Frontend
+- **Glass morphism** — Cards use `bg-card/50 backdrop-blur-sm border` with no `box-shadow`. Elevation from blur + transparency alone.
+- **Combobox over native Select** — Goal/parent/reference pickers use `Popover` + `Command` + `cmdk` for searchability with 200+ items. Native `<Select>` is only for status/priority (small fixed sets).
+- **No Portal inside Dialog** — `SelectContent` and `PopoverContent` have `<Portal>` wrappers removed globally to prevent Radix focus-management crash when nested inside `Dialog` (known `@radix-ui/react-select@^2.0.0` bug).
+- **Local state + Save for goal management** — TaskDetail's "Manage Tasks" popover keeps `childIds` locally; only calls `updateTaskChildren` on Save button click, avoiding a mutation per add/remove.
+
+### Color & Theming
+- **Light mode**: warm brown/beige palette (`#f5f0eb` backgrounds, `#8b7355` accents).
+- **Dark mode**: warm charcoal (`#1a1a1a` backgrounds, `#e0d5c1` text).
+- **System-aware**: Defaults to `system` theme with `ThemeProvider`; user can override to light/dark.

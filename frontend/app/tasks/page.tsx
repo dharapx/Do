@@ -277,7 +277,7 @@ function TasksContent() {
 
           <Button onClick={() => setIsCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            New Task
+            New Item
           </Button>
         </div>
 

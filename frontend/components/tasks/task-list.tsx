@@ -104,7 +104,7 @@ export function TaskList({ filters }: TaskListProps) {
         <ListTodo className="h-12 w-12 text-muted-foreground/30" />
         <h3 className="mt-4 text-sm font-medium">No tasks found</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Create a new task to get started
+           Create a new task or goal to get started
         </p>
       </div>
     );

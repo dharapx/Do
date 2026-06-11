@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, func, or_, and_
 from sqlalchemy.orm import selectinload
 
+from app.cache import get_dashboard_cache, set_dashboard_cache
 from app.database import SessionLocal
 from app.models.task import Task
 from app.models.tag import TaskTag
@@ -394,40 +395,35 @@ class CRUDTask:
         return True
 
     def get_dashboard_stats(self, db: SessionLocal, user_id: int, date_from: str | None = None, date_to: str | None = None) -> dict:
+        cached = get_dashboard_cache(user_id, date_from, date_to)
+        if cached:
+            return cached
+
         base_conditions = [Task.user_id == user_id]
         if date_from:
             base_conditions.append(Task.updated_at >= datetime.fromisoformat(date_from))
         if date_to:
             base_conditions.append(Task.updated_at < datetime.fromisoformat(date_to) + timedelta(days=1))
+
         def count_with(extra_conditions=None):
             conditions = base_conditions + (extra_conditions or [])
             return db.execute(select(func.count(Task.id)).where(and_(*conditions))).scalar() or 0
 
-        total = count_with()
-        not_started = count_with([Task.status == "not_started"])
-        in_progress = count_with([Task.status == "in_progress"])
-        done = count_with([Task.status == "done"])
-        wont_do = count_with([Task.status == "wont_do"])
-        high_priority = count_with([Task.priority == "high"])
-        urgent = count_with([Task.priority == "urgent", Task.status.not_in(["done", "wont_do"])])
-        urgent_all = count_with([Task.priority == "urgent"])
-        high_priority_all = count_with([Task.priority == "high"])
-
-        avg_progress = (
-            db.execute(select(func.avg(Task.progress)).where(and_(*base_conditions))).scalar() or 0
-        )
-        return {
-            "total": total,
-            "not_started": not_started,
-            "in_progress": in_progress,
-            "done": done,
-            "wont_do": wont_do,
-            "high_priority": high_priority,
-            "urgent": urgent,
-            "urgent_all": urgent_all,
-            "high_priority_all": high_priority_all,
-            "avg_progress": round(float(avg_progress), 1),
+        result = {
+            "total": count_with(),
+            "not_started": count_with([Task.status == "not_started"]),
+            "in_progress": count_with([Task.status == "in_progress"]),
+            "done": count_with([Task.status == "done"]),
+            "wont_do": count_with([Task.status == "wont_do"]),
+            "high_priority": count_with([Task.priority == "high"]),
+            "urgent": count_with([Task.priority == "urgent", Task.status.not_in(["done", "wont_do"])]),
+            "urgent_all": count_with([Task.priority == "urgent"]),
+            "high_priority_all": count_with([Task.priority == "high"]),
+            "avg_progress": round(float(db.execute(select(func.avg(Task.progress)).where(and_(*base_conditions))).scalar() or 0), 1),
         }
+
+        set_dashboard_cache(user_id, result, date_from, date_to)
+        return result
 
 
 task_crud = CRUDTask()

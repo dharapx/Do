@@ -21,7 +21,9 @@ A modern, production-ready task management application with goal/task hierarchy,
 
 **Backend**: FastAPI, SQLAlchemy 2.0, Alembic, Pydantic v2, JWT auth
 
-**Database**: PostgreSQL 15
+**Database**: PostgreSQL 15 (via PgBouncer connection pooler)
+
+**Cache**: Redis 7 Alpine
 
 **Deployment**: Docker, Docker Compose
 
@@ -74,20 +76,25 @@ npm install
 npm run dev
 ```
 
+## Architecture
+
+See [`docs/architecture.md`](docs/architecture.md) for full system architecture diagrams, database schema, index strategy, and key decisions.
+
 ## Project Structure
 
 ```
 ├── backend/
-│   ├── alembic/              # Database migrations
+│   ├── alembic/              # Database migrations (7 migration files)
 │   ├── app/
 │   │   ├── api/v1/           # Route handlers (tasks, auth, comments, notes, time, history, search)
 │   │   ├── crud/             # Business logic layer
 │   │   ├── models/           # SQLAlchemy models
 │   │   ├── schemas/          # Pydantic v2 schemas
 │   │   ├── core/             # Auth utilities
+│   │   ├── cache.py          # Redis-backed dashboard cache (TTL 30s)
 │   │   ├── config.py         # Application settings
-│   │   ├── database.py       # Database connection
-│   │   └── main.py           # FastAPI app + CORS + custom JSON response
+│   │   ├── database.py       # Database connection (pool_size=10, overflow=20)
+│   │   └── main.py           # FastAPI app + CORS + ZJSONResponse
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
@@ -100,7 +107,7 @@ npm run dev
 │   │   ├── layout/           # Sidebar, Header
 │   │   └── theme/            # Theme provider
 │   ├── lib/
-│   │   ├── api/              # API client + endpoint functions
+│   │   ├── api/              # API client + endpoint functions (get/post/patch/put/delete)
 │   │   ├── hooks/            # React Query hooks
 │   │   └── store/            # Zustand state stores (auth, filters, search)
 │   ├── Dockerfile
@@ -108,7 +115,8 @@ npm run dev
 ├── database/
 │   └── init.sql
 ├── docs/
-│   └── api.md
+│   ├── api.md                # API endpoint reference
+│   └── architecture.md       # System architecture, key decisions, diagrams
 ├── docker-compose.yml
 └── README.md
 ```
@@ -150,14 +158,28 @@ npm run dev
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+psycopg://todos_user:todos_pass@postgres:5432/todos_app` |
+| `DATABASE_URL` | PostgreSQL connection string (via PgBouncer) | `postgresql+psycopg://todos_user:todos_pass@pgbouncer:5432/todos_app` |
 | `SECRET_KEY` | JWT secret key | `change-me-in-production` |
 | `CORS_ORIGINS` | Comma-separated allowed origins | `http://localhost:3000` |
+| `REDIS_URL` | Redis connection string | `redis://redis:6379/0` |
 | `NEXT_PUBLIC_API_URL` | API base URL for frontend | `http://localhost:8000/api/v1` |
+
+## Connection Flow
+
+```
+Frontend (port 3000) ──HTTP──> Backend FastAPI (port 8000)
+                                    │
+                                    ├── PgBouncer (port 5432, transaction pool: 25)
+                                    │       │
+                                    │       └── PostgreSQL 15 (max_connections=100)
+                                    │
+                                    └── Redis 7 (port 6379, AOF persistence)
+                                            └── Dashboard stats cache (TTL 30s)
+```
 
 ## Database
 
-Tables are managed via Alembic migrations. To create a new migration:
+Tables are managed via Alembic migrations (7 migration files). To create a new migration:
 
 ```bash
 cd backend

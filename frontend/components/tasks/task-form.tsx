@@ -187,9 +187,9 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Task" : "Create Task"}</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit Item" : "New Item"}</DialogTitle>
           <DialogDescription>
-            {isEditing ? "Update the task details below." : "Fill in the details to create a new task."}
+            {isEditing ? "Update the item details below." : "Fill in the details below."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -477,7 +477,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : isEditing ? "Update Task" : "Create Task"}
+              {isPending ? "Saving..." : isEditing ? "Update" : "Create"}
             </Button>
           </DialogFooter>
         </form>

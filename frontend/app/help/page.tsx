@@ -32,7 +32,7 @@ const sections = [
     title: "Tasks",
     items: [
       "The Tasks page lists all your tasks with columns for ID, Title, Status, Priority, and Progress.",
-      "Click the New Task button to create a task with title, description, priority, and tags.",
+       "Click the New Item button to create a task or goal with title, description, priority, and tags.",
       "Click a task row to view and edit full task details including comments, time tracking, and history.",
       "Filter tasks using status, priority, and search options.",
       "Task statuses: Not Started, In Progress, Done, Won't Do.",

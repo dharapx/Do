@@ -1,0 +1,190 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 38 44% 93%;
+    --foreground: 30 12% 18%;
+    --card: 40 35% 96%;
+    --card-foreground: 30 12% 18%;
+    --popover: 40 35% 96%;
+    --popover-foreground: 30 12% 18%;
+    --primary: 30 45% 45%;
+    --primary-foreground: 40 30% 96%;
+    --secondary: 35 25% 86%;
+    --secondary-foreground: 30 12% 22%;
+    --muted: 35 20% 88%;
+    --muted-foreground: 30 8% 42%;
+    --accent: 25 55% 52%;
+    --accent-foreground: 40 30% 96%;
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 40 30% 96%;
+    --border: 35 20% 78%;
+    --input: 35 20% 78%;
+    --ring: 30 45% 45%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 30 15% 10%;
+    --foreground: 35 10% 82%;
+    --card: 30 12% 14%;
+    --card-foreground: 35 10% 82%;
+    --popover: 30 12% 14%;
+    --popover-foreground: 35 10% 82%;
+    --primary: 32 35% 52%;
+    --primary-foreground: 30 15% 10%;
+    --secondary: 30 10% 20%;
+    --secondary-foreground: 35 10% 82%;
+    --muted: 30 10% 20%;
+    --muted-foreground: 30 8% 55%;
+    --accent: 25 50% 45%;
+    --accent-foreground: 35 10% 90%;
+    --destructive: 0 50% 38%;
+    --destructive-foreground: 35 10% 90%;
+    --border: 30 8% 24%;
+    --input: 30 8% 24%;
+    --ring: 32 35% 52%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply rounded-xl border;
+    background-color: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(12px);
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+}
+
+/* TipTap / ProseMirror editor styles */
+.ProseMirror {
+  @apply outline-none min-h-[200px] px-4 py-3;
+}
+
+.ProseMirror p {
+  @apply my-1;
+}
+
+.ProseMirror h1 {
+  @apply text-2xl font-bold my-3;
+}
+
+.ProseMirror h2 {
+  @apply text-xl font-semibold my-2;
+}
+
+.ProseMirror h3 {
+  @apply text-lg font-medium my-2;
+}
+
+.ProseMirror ul {
+  @apply list-disc pl-6 my-1;
+}
+
+.ProseMirror ol {
+  @apply list-decimal pl-6 my-1;
+}
+
+.ProseMirror li {
+  @apply my-0.5;
+}
+
+.ProseMirror blockquote {
+  @apply border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-2;
+}
+
+.ProseMirror pre {
+  @apply bg-muted rounded-lg p-3 my-2 overflow-x-auto text-sm;
+}
+
+.ProseMirror pre code {
+  @apply bg-transparent p-0 text-sm;
+}
+
+.ProseMirror code {
+  @apply bg-muted rounded px-1.5 py-0.5 text-sm font-mono text-primary;
+}
+
+.ProseMirror img {
+  @apply max-w-full h-auto rounded-lg my-2;
+}
+
+.ProseMirror a {
+  @apply text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary;
+}
+
+.ProseMirror table {
+  @apply w-full border-collapse my-2;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  @apply border border-border px-3 py-2 text-sm min-w-[80px];
+}
+
+.ProseMirror th {
+  @apply bg-muted font-medium text-left;
+}
+
+.ProseMirror ul[data-type="taskList"] {
+  @apply list-none pl-0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  @apply flex items-start gap-2;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label {
+  @apply flex-shrink-0 mt-1;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
+  @apply accent-primary;
+}
+
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div > p {
+  @apply line-through text-muted-foreground;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  @apply text-muted-foreground/40 content-[attr(data-placeholder)] float-left pointer-events-none h-0;
+}
+
+.ProseMirror s {
+  @apply line-through;
+}
+
+.ProseMirror mark {
+  @apply bg-yellow-200 dark:bg-yellow-800 rounded-sm px-0.5;
+}
+
+.ProseMirror [style*="text-align"] {
+  @apply block;
+}

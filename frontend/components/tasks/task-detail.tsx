@@ -50,9 +50,10 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useTask, useUpdateTask, useTasks, useSetTaskParent, useUpdateTaskChildren } from "@/lib/hooks/use-tasks";
 import { useComments, useCreateComment, useDeleteComment } from "@/lib/hooks/use-comments";
-import { useTimeEntries, useTotalTime, useStartTimer, useStopTimer, useAddManualEntry } from "@/lib/hooks/use-time";
+import { useTimeEntries, useTotalTime, useStartTimer, useStopTimer, useAddManualEntry, useUpdateTimeEntry, useDeleteTimeEntry } from "@/lib/hooks/use-time";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
 import { type Task } from "@/lib/api/tasks";
+import { type TimeEntry } from "@/lib/api/time";
 
 interface TaskDetailProps {
   taskId: number;
@@ -60,8 +61,10 @@ interface TaskDetailProps {
 
 function formatDuration(seconds: number): string {
   if (!seconds) return "0m";
-  const hours = Math.floor(seconds / 3600);
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
 }
@@ -79,6 +82,8 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
   const startTimer = useStartTimer();
   const stopTimer = useStopTimer();
   const addManualEntry = useAddManualEntry();
+  const updateTimeEntry = useUpdateTimeEntry();
+  const deleteTimeEntry = useDeleteTimeEntry();
   const setTaskParent = useSetTaskParent();
   const updateTaskChildren = useUpdateTaskChildren();
 
@@ -89,17 +94,27 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
   const [commentText, setCommentText] = useState("");
   const [manualTime, setManualTime] = useState("");
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [localProgress, setLocalProgress] = useState<number | null>(null);
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+  const [editDuration, setEditDuration] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   const [goalOpen, setGoalOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [manageIds, setManageIds] = useState<number[]>(() =>
-    task?.children?.map((c) => c.id) ?? []
+    task?.children?.filter((c) => c.status !== "done").map((c) => c.id) ?? []
   );
 
   useEffect(() => {
     if (task?.children) {
-      setManageIds(task.children.map((c) => c.id));
+      setManageIds(task.children.filter((c) => c.status !== "done").map((c) => c.id));
     }
   }, [task?.children]);
+
+  useEffect(() => {
+    if (localProgress !== null && task?.progress === localProgress) {
+      setLocalProgress(null);
+    }
+  }, [task?.progress, localProgress]);
 
   const listQuery = useMemo(() => ({ limit: 200, sort_by: "created_at" as const, sort_order: "desc" as const }), []);
   const { data: allTasks } = useTasks(listQuery);
@@ -176,11 +191,38 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
   const handleManualEntry = (e: React.FormEvent) => {
     e.preventDefault();
     const minutes = parseInt(manualTime);
-    if (isNaN(minutes) || minutes <= 0) return;
+    if (isNaN(minutes) || minutes <= 0 || minutes > 1440) return;
     addManualEntry.mutate(
       { taskId, data: { duration: minutes * 60 } },
       { onSuccess: () => setManualTime("") }
     );
+  };
+
+  const startEditEntry = (entry: TimeEntry) => {
+    setEditingEntryId(entry.id);
+    setEditDuration(String(Math.floor(entry.duration / 60)));
+    setEditDescription(entry.description ?? "");
+  };
+
+  const cancelEditEntry = () => {
+    setEditingEntryId(null);
+    setEditDuration("");
+    setEditDescription("");
+  };
+
+  const handleEditEntry = (entryId: number) => {
+    const minutes = parseInt(editDuration);
+    if (isNaN(minutes) || minutes <= 0 || minutes > 1440) return;
+    updateTimeEntry.mutate(
+      { taskId, entryId, data: { duration: minutes * 60, description: editDescription || null } },
+      { onSuccess: () => cancelEditEntry() }
+    );
+  };
+
+  const handleDeleteEntry = (entryId: number) => {
+    if (confirm("Delete this time entry?")) {
+      deleteTimeEntry.mutate({ taskId, entryId });
+    }
   };
 
   return (
@@ -373,22 +415,34 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xs text-muted-foreground">Progress</p>
-                <span className="text-xs font-medium tabular-nums">{task.progress}%</span>
+                <span className="text-xs font-medium tabular-nums">{localProgress ?? task.progress}%</span>
               </div>
               <div className="relative h-2 rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full rounded-full bg-primary transition-all"
-                  style={{ width: `${task.progress}%` }}
+                  style={{ width: `${localProgress ?? task.progress}%` }}
                 />
               </div>
               <input
                 type="range"
                 min="0"
                 max="100"
-                value={task.progress}
-                onChange={(e) =>
-                  updateTask.mutate({ id: taskId, data: { progress: parseInt(e.target.value) } })
-                }
+                value={localProgress ?? task.progress}
+                onChange={(e) => setLocalProgress(parseInt(e.target.value))}
+                onPointerUp={(e) => {
+                  const val = parseInt((e.target as HTMLInputElement).value);
+                  if (val !== task.progress) {
+                    updateTask.mutate({ id: taskId, data: { progress: val } });
+                  }
+                }}
+                onKeyUp={(e) => {
+                  if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                    const val = parseInt((e.target as HTMLInputElement).value);
+                    if (val !== task.progress) {
+                      updateTask.mutate({ id: taskId, data: { progress: val } });
+                    }
+                  }
+                }}
                 className="mt-1 w-full h-2 appearance-none cursor-pointer rounded-full bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background [&::-webkit-slider-thumb]:shadow"
               />
             </div>
@@ -468,9 +522,14 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
                         <Button
                           size="sm"
                           className="w-full text-xs"
-                          onClick={() => {
-                            updateTaskChildren.mutate({ goalId: taskId, childIds: manageIds });
-                            setManageOpen(false);
+                          onClick={async () => {
+                            try {
+                              const goal = await updateTaskChildren.mutateAsync({ goalId: taskId, childIds: manageIds });
+                              setManageIds(goal.children?.map((c: any) => c.id) ?? []);
+                              setManageOpen(false);
+                            } catch {
+                              /* error toast handled by hook */
+                            }
                           }}
                         >
                           Save
@@ -598,13 +657,14 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
             <form onSubmit={handleManualEntry} className="flex gap-2">
               <Input
                 type="number"
-                placeholder="Minutes"
+                placeholder="Minutes (max 1440)"
                 value={manualTime}
                 onChange={(e) => setManualTime(e.target.value)}
                 className="flex-1"
                 min="1"
+                max="1440"
               />
-              <Button type="submit" size="icon" variant="outline" disabled={!manualTime}>
+              <Button type="submit" size="icon" variant="outline" disabled={!manualTime || parseInt(manualTime) > 1440}>
                 <Plus className="h-4 w-4" />
               </Button>
             </form>
@@ -615,15 +675,55 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
                 <Skeleton className="h-8 w-full" />
               </div>
             ) : timeEntries && timeEntries.length > 0 ? (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="space-y-2 max-h-64 overflow-y-auto">
                 {timeEntries.map((entry) => (
-                  <div key={entry.id} className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {entry.started_at
-                        ? format(new Date(entry.started_at), "MMM d, HH:mm")
-                        : "Manual"}
-                    </span>
-                    <span className="font-medium">{formatDuration(entry.duration)}</span>
+                  <div key={entry.id} className="flex items-center justify-between text-sm group">
+                    {editingEntryId === entry.id ? (
+                      <div className="flex-1 flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="1440"
+                          value={editDuration}
+                          onChange={(e) => setEditDuration(e.target.value)}
+                          className="w-20 h-7 text-xs"
+                        />
+                        <Input
+                          placeholder="Description"
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          className="flex-1 h-7 text-xs"
+                        />
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleEditEntry(entry.id)} disabled={!editDuration || parseInt(editDuration) > 1440}>
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={cancelEditEntry}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-muted-foreground shrink-0">
+                            {entry.started_at
+                              ? format(new Date(entry.started_at), "MMM d, HH:mm")
+                              : "Manual"}
+                          </span>
+                          {entry.description && (
+                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{entry.description}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="font-medium">{formatDuration(entry.duration)}</span>
+                          <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => startEditEntry(entry)}>
+                            <Edit3 className="h-3 w-3" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive" onClick={() => handleDeleteEntry(entry.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>

@@ -32,6 +32,7 @@ export function TaskList({ filters }: TaskListProps) {
   const setSelectedTask = useTaskStore((s) => s.setSelectedTask);
   const [expandedGoals, setExpandedGoals] = useState<Set<number>>(new Set());
 
+  const hasSearch = !!(filters?.search);
   const { goals, standalone, childMap } = useMemo(() => {
     const tasks = data?.items || [];
     const childMap = new Map<number, Task[]>();
@@ -51,11 +52,13 @@ export function TaskList({ filters }: TaskListProps) {
         goals.push(t);
       } else if (!t.parent_id) {
         standalone.push(t);
+      } else if (hasSearch) {
+        standalone.push(t);
       }
     }
 
     return { goals, standalone, childMap };
-  }, [data]);
+  }, [data, hasSearch]);
 
   const toggleGoal = (id: number) => {
     setExpandedGoals((prev) => {
@@ -159,6 +162,15 @@ export function TaskList({ filters }: TaskListProps) {
                   </span>
                   <span className="text-sm font-semibold flex-1 truncate">{goal.title}</span>
                   <div className="flex items-center gap-2 ml-auto">
+                    <div className="hidden md:flex w-16 items-center gap-1.5">
+                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all duration-300 ease-in-out"
+                          style={{ width: `${childProgress}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] tabular-nums text-muted-foreground w-6 text-right">{childProgress}%</span>
+                    </div>
                     <div className="w-24 overflow-hidden text-center">
                       <Badge variant={STATUS_COLORS[goal.status] as any || "slate"} className="inline-flex text-[10px] px-1.5 py-0">
                         <span className="truncate">{STATUS_OPTIONS[goal.status] || goal.status}</span>
@@ -184,13 +196,6 @@ export function TaskList({ filters }: TaskListProps) {
                     <div className="hidden lg:flex items-center gap-1 text-xs text-muted-foreground w-24 justify-end">
                       <span>{format(new Date(goal.created_at), "MMM d, yyyy")}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
-                      <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${childProgress}%` }} />
-                      </div>
-                      <span className="tabular-nums">{childProgress}%</span>
-                      <span className="hidden lg:inline">{children.length} tasks</span>
-                    </div>
                     <div className="w-9" />
                   </div>
                 </div>
@@ -211,11 +216,17 @@ export function TaskList({ filters }: TaskListProps) {
           );
         })}
         {standalone.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            onDelete={(id) => deleteTask.mutate(id)}
-          />
+          <div key={task.id} className="relative">
+            {task.parent_id && hasSearch && (
+              <div className="px-4 pt-1 pb-0">
+                <span className="text-[10px] text-muted-foreground">Goal #{task.parent_id}</span>
+              </div>
+            )}
+            <TaskCard
+              task={task}
+              onDelete={(id) => deleteTask.mutate(id)}
+            />
+          </div>
         ))}
       </div>
     </div>

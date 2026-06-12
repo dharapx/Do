@@ -8,3 +8,9 @@ __pycache__/
 .git/
 dist/
 build/
+
+# Docker secrets (production credentials)
+backend/secrets/*.txt
+!backend/secrets/.gitkeep
+# Example templates are safe to commit
+!backend/secrets/*.txt.example

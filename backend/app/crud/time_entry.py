@@ -6,7 +6,7 @@ from app.database import SessionLocal
 from app.models.time_entry import TimeEntry
 from app.models.task import Task
 from app.models.history import TaskHistory
-from app.schemas.time_entry import TimeEntryCreate
+from app.schemas.time_entry import TimeEntryCreate, TimeEntryUpdate
 
 
 class CRUDTimeEntry:
@@ -37,6 +37,56 @@ class CRUDTimeEntry:
         db.commit()
         db.refresh(entry)
         return entry
+
+    def update_entry(self, db: SessionLocal, task_id: int, entry_id: int, data: TimeEntryUpdate, user_id: int) -> TimeEntry | None:
+        entry = db.get(TimeEntry, entry_id)
+        if not entry or entry.task_id != task_id or entry.user_id != user_id:
+            return None
+
+        old_duration = entry.duration
+        if data.duration is not None:
+            entry.duration = data.duration
+        if data.description is not None:
+            entry.description = data.description
+
+        task = db.get(Task, task_id)
+        if task and data.duration is not None:
+            task.total_time_spent = (task.total_time_spent or 0) - old_duration + data.duration
+            task.updated_at = datetime.utcnow()
+
+        history = TaskHistory(
+            task_id=task_id,
+            user_id=user_id,
+            field_changed="time_spent",
+            old_value=f"{old_duration}s",
+            new_value=f"{entry.duration}s (edited)",
+        )
+        db.add(history)
+        db.commit()
+        db.refresh(entry)
+        return entry
+
+    def delete_entry(self, db: SessionLocal, task_id: int, entry_id: int, user_id: int) -> bool:
+        entry = db.get(TimeEntry, entry_id)
+        if not entry or entry.task_id != task_id or entry.user_id != user_id:
+            return False
+
+        task = db.get(Task, task_id)
+        if task:
+            task.total_time_spent = max(0, (task.total_time_spent or 0) - entry.duration)
+            task.updated_at = datetime.utcnow()
+
+        history = TaskHistory(
+            task_id=task_id,
+            user_id=user_id,
+            field_changed="time_spent",
+            old_value=f"{entry.duration}s",
+            new_value=None,
+        )
+        db.add(history)
+        db.delete(entry)
+        db.commit()
+        return True
 
     def get_totals(self, db: SessionLocal, task_id: int) -> int:
         task = db.get(Task, task_id)

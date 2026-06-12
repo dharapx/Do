@@ -14,5 +14,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    github_id: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True, index=True)
+    google_id: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())

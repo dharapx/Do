@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
-import { Search, Command, Menu, LogOut, User as UserIcon } from "lucide-react";
+import { Search, Command, Menu, LogOut, User as UserIcon, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { useSearchStore } from "@/lib/store/search-store";
+import { authApi } from "@/lib/api/auth";
+import { toast } from "sonner";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -84,7 +86,12 @@ export function Header({ onMenuClick }: HeaderProps) {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // even if server call fails, clear local state
+    }
     clearAuth();
     router.push("/login");
   };
@@ -156,6 +163,10 @@ export function Header({ onMenuClick }: HeaderProps) {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => router.push("/settings")}>
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={handleLogout} className="text-destructive">
             <LogOut className="mr-2 h-4 w-4" />
             Log out

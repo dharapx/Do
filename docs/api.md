@@ -4,6 +4,15 @@ Base URL: `/api/v1`
 
 ## Authentication
 
+The API uses **httpOnly cookie-based authentication** with automatic **refresh token rotation**.
+
+- **`access_token`** cookie (15 min, httpOnly, SameSite=strict, path=/) — short-lived JWT for API access
+- **`refresh_token`** cookie (7 days, httpOnly, SameSite=strict, path=/api/v1/auth) — single-use random token, SHA256 hashed in DB
+
+For **cross-origin development** (frontend on `:3001`, backend on `:8000`), the OAuth callback passes tokens in the URL hash fragment (`#access_token=...&refresh_token=...`). The frontend stores them in-memory and sends via `Authorization: Bearer <token>` header.
+
+The response `{ "status": "ok" }` indicates success; cookies are set via `Set-Cookie` headers.
+
 ### Signup
 `POST /auth/signup`
 
@@ -26,9 +35,121 @@ Base URL: `/api/v1`
 }
 ```
 
-Response: `{ "access_token": "jwt...", "token_type": "bearer" }`
+### Get Current User
+`GET /auth/me`
 
-All task/note endpoints require `Authorization: Bearer <token>` header.
+Returns the authenticated user's profile.
+
+```json
+{
+  "id": 1,
+  "username": "user@example.com",
+  "email": "user@example.com",
+  "display_name": "User Name",
+  "created_at": "2026-06-11T05:34:45.780718Z"
+}
+```
+
+### Refresh Token
+`POST /auth/refresh`
+
+Rotates both access and refresh tokens. Accepts the `refresh_token` cookie automatically. Also accepts `Authorization: Bearer <refresh_token>` as fallback.
+
+### Logout
+`POST /auth/logout`
+
+Revokes all non-expired refresh tokens for the current user and clears auth cookies.
+
+### OAuth Configuration
+`GET /auth/config`
+
+Returns which OAuth providers are enabled on the server:
+
+```json
+{
+  "github": true,
+  "google": false
+}
+```
+
+Providers are auto-enabled when both client ID and secret are configured. Can be overridden via `ENABLE_GITHUB_OAUTH` / `ENABLE_GOOGLE_OAUTH` environment variables.
+
+### OAuth Authorization URL
+`GET /auth/oauth/{provider}`
+
+Provider values: `github`, `google`. Returns a redirect URL to the provider's consent screen:
+
+```json
+{
+  "url": "https://github.com/login/oauth/authorize?..."
+}
+```
+
+### OAuth Callback (internal)
+`GET /auth/oauth/{provider}/callback`
+
+Handles the OAuth provider's callback, exchanges the authorization code for tokens, creates or links a user account, sets auth cookies, and redirects to `{FRONTEND_URL}/dashboard#access_token=...&refresh_token=...`.
+
+### Forgot Password
+`POST /auth/forgot-password`
+
+```json
+{
+  "username": "user@example.com"
+}
+```
+
+If the user has OAuth-linked providers, returns those instead of a reset code:
+
+```json
+{
+  "has_oauth_providers": true,
+  "oauth_providers": ["github"],
+  "reset_code": null,
+  "message": "This account uses github. Sign in with that provider instead."
+}
+```
+
+If the user has a password, returns a reset code (shown in logs / response — no SMTP):
+
+```json
+{
+  "has_oauth_providers": false,
+  "oauth_providers": [],
+  "reset_code": "a1b2c3d4",
+  "message": "Use the code below to reset your password. It expires in 15 minutes."
+}
+```
+
+### Reset Password
+`POST /auth/reset-password`
+
+```json
+{
+  "code": "a1b2c3d4",
+  "new_password": "newSecurePassword123"
+}
+```
+
+Revokes all existing refresh tokens after success.
+
+### Set Password (OAuth users)
+`POST /auth/set-password`
+
+For users who signed up via OAuth and want to add password-based login:
+
+```json
+{
+  "current_password": null,
+  "new_password": "newSecurePassword123"
+}
+```
+
+For existing password users changing their password, `current_password` is required.
+
+Revokes all existing refresh tokens after success.
+
+## Tasks
 
 ## Tasks
 
@@ -236,12 +357,31 @@ Response: `{ task_id: number, total_time: number }`
 ### Add Manual Entry
 `POST /tasks/{task_id}/time`
 
+Maximum duration is 1440 minutes (86400 seconds).
+
 ```json
 {
   "duration": 3600,
   "description": "Worked on feature X"
 }
 ```
+
+### Update Time Entry
+`PUT /tasks/{task_id}/time/{entry_id}`
+
+Updates duration and/or description of an existing time entry. Maximum duration is 1440 minutes (86400 seconds).
+
+```json
+{
+  "duration": 1800,
+  "description": "Updated description"
+}
+```
+
+### Delete Time Entry
+`DELETE /tasks/{task_id}/time/{entry_id}`
+
+Deletes a time entry and recalculates the task's total time spent.
 
 ### Start Timer
 `POST /tasks/{task_id}/time/start`
@@ -251,11 +391,7 @@ Creates a new time entry with `started_at` set to current time.
 ### Stop Timer
 `POST /tasks/{task_id}/time/stop`
 
-```json
-{ "entry_id": 123 }
-```
-
-Calculates duration from `started_at` to current time and updates the entry.
+Calculates duration from `started_at` to current time and updates the entry (no request body).
 
 ## History
 

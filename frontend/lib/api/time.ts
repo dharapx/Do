@@ -20,6 +20,11 @@ export interface ManualEntryData {
   description?: string;
 }
 
+export interface UpdateEntryData {
+  duration?: number;
+  description?: string | null;
+}
+
 export const timeApi = {
   fetchTimeEntries(taskId: number) {
     return api.get<TimeEntry[]>(`/tasks/${taskId}/time`);
@@ -31,6 +36,14 @@ export const timeApi = {
 
   addManualEntry(taskId: number, data: ManualEntryData) {
     return api.post<TimeEntry>(`/tasks/${taskId}/time`, data);
+  },
+
+  updateTimeEntry(taskId: number, entryId: number, data: UpdateEntryData) {
+    return api.put<TimeEntry>(`/tasks/${taskId}/time/${entryId}`, data);
+  },
+
+  deleteTimeEntry(taskId: number, entryId: number) {
+    return api.delete(`/tasks/${taskId}/time/${entryId}`);
   },
 
   startTimer(taskId: number) {

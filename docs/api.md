@@ -181,6 +181,8 @@ Revokes all existing refresh tokens after success.
 - **children**: list of child tasks (for goals only, in detail endpoint)
 - **reference_id**: non-hierarchical "see also" link to any task/goal
 - **reference_title**: computed title of referenced task (read-only)
+- **description** supports rich text HTML (created via TipTap editor)
+- **content** in comments also supports rich text HTML
 
 ### List Tasks
 `GET /tasks`
@@ -236,7 +238,7 @@ Accepts any subset of task fields. Notable behaviors:
 ```json
 {
   "title": "string",
-  "description": "string",
+  "description": "<p>Rich text <strong>description</strong> with formatting</p>",
   "status": "in_progress",
   "priority": "high",
   "type": "task",
@@ -330,15 +332,19 @@ Response:
 ### Create Comment
 `POST /tasks/{task_id}/comments`
 
+Supports rich text HTML content (created via TipTap editor).
+
 ```json
-{ "content": "string (required)" }
+{ "content": "<p>Rich text <strong>content</strong></p>" }
 ```
 
 ### Update Comment
 `PATCH /tasks/{task_id}/comments/{comment_id}`
 
+Supports rich text HTML content (created via TipTap editor).
+
 ```json
-{ "content": "string (required)" }
+{ "content": "<p>Rich text <strong>content</strong> with <em>formatting</em></p>" }
 ```
 
 ### Delete Comment
@@ -411,7 +417,7 @@ Returns chronological list of all changes made to a task.
 ```json
 {
   "title": "Note title",
-  "content": "# Markdown content",
+  "content": "<p>Rich text or <strong>markdown</strong> content</p>",
   "tags": ["personal"]
 }
 ```

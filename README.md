@@ -6,11 +6,13 @@ A modern, production-ready task management application with goal/task hierarchy,
 
 - **Two-Level Hierarchy** — Goals (parent tasks) with nested child tasks; goals auto-compute aggregate progress from children
 - **Reference Links** — Non-hierarchical "see also" connections between any tasks
-- **Task Management** — Create, update, delete tasks with title, description, priority, tags, and type (task/goal); progress slider with local state for smooth drag-and-drop
+- **Task Management** — Create, update, delete tasks with title, description (rich text via TipTap), priority, tags, and type (task/goal); progress slider with local state for smooth drag-and-drop
 - **Advanced Filtering** — Multi-select status/priority dropdowns, filter by tags, date range, keyword; full-text search across titles, descriptions, and comments; search flattens child tasks into standalone results
+- **Rich Text Editing** — TipTap-based rich text editor with full toolbar (bold, italic, underline, headings, lists, tables, code blocks, links, images, text alignment, highlight, undo/redo) for task descriptions and comments; formatted HTML rendering via `FormattedContent` with explicit Tailwind utility classes
+- **Markdown Notes** — Note editor with toggle between Rich Text and Markdown modes; view mode auto-detects HTML vs markdown and renders with `react-markdown` + `remark-gfm`
 - **Time Tracking** — Start/stop timers, add manual entries with inline edit/delete, max 1440 min per entry validated on both ends, view accumulated time per task, timeline chart on dashboard
 - **Activity History** — Immutable audit trail of all changes (status, priority, tags, description, time, comments)
-- **Notes** — Rich text note editor with persistent storage
+- **Notes** — Rich text note editor with toggleable Markdown mode, auto-detected rendering
 - **Dashboard** — Charts (priority breakdown, status distribution), stats cards (urgent, high priority, progress), time timeline, recent activity, quick actions
 - **Authentication** — httpOnly cookie-based sessions with JWT access tokens (15 min), refresh token rotation (7 days, SHA256 hashed), and `Authorization: Bearer` fallback for cross-origin dev
 - **OAuth SSO** — Sign in with GitHub or Google; auto-links by email; configurable toggle via env vars
@@ -20,7 +22,7 @@ A modern, production-ready task management application with goal/task hierarchy,
 
 ## Tech Stack
 
-**Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui + Radix UI + cmdk, React Query (TanStack), Zustand, date-fns, Recharts, Lucide icons
+**Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui + Radix UI + cmdk, React Query (TanStack), Zustand, date-fns, Recharts, Lucide icons, TipTap (ProseMirror), react-markdown, remark-gfm, marked, lowlight
 
 **Backend**: FastAPI, SQLAlchemy 2.0, Alembic, Pydantic v2, JWT + refresh tokens, Authlib OAuth, bcrypt
 
@@ -105,10 +107,10 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 ├── frontend/
 │   ├── app/                  # Next.js App Router pages (dashboard, tasks, notes, login, etc.)
 │   ├── components/
-│   │   ├── ui/               # shadcn/ui primitives (button, dialog, command, select, popover, etc.)
+│   │   ├── ui/               # shadcn/ui primitives + RichTextEditor, EditorToolbar, PasswordComplexity
 │   │   ├── dashboard/        # Dashboard widgets (charts, stats cards, timeline)
 │   │   ├── tasks/            # Task components (list, card, form, detail)
-│   │   ├── notes/            # Note editor with toolbar
+│   │   ├── notes/            # Note editor with toolbar (re-exports from ui/)
 │   │   ├── layout/           # Sidebar, Header
 │   │   └── theme/            # Theme provider
 │   ├── lib/
@@ -151,7 +153,7 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 | GET | `/api/v1/tasks/dashboard/stats` | Dashboard statistics |
 | GET | `/api/v1/tasks/dashboard/time-timeline` | Time tracking timeline |
 | GET | `/api/v1/tasks/{id}/comments` | List comments |
-| POST | `/api/v1/tasks/{id}/comments` | Add comment |
+| POST | `/api/v1/tasks/{id}/comments` | Add comment (rich text HTML) |
 | PATCH | `/api/v1/tasks/{id}/comments/{cid}` | Edit comment |
 | DELETE | `/api/v1/tasks/{id}/comments/{cid}` | Delete comment |
 | GET | `/api/v1/tasks/{id}/time` | List time entries |

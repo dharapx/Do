@@ -137,8 +137,13 @@ graph TB
             end
 
             subgraph NOTES_COMP["Notes"]
-                NOTE_EDITOR["NoteEditor"]
+                NOTE_EDITOR["NoteEditor<br/>(Rich Text ↔ Markdown toggle)"]
                 EDITOR_TOOLBAR["EditorToolbar"]
+            end
+
+            subgraph RICH_TEXT["Rich Text"]
+                RICH_TEXT_EDITOR["RichTextEditor<br/>(TipTap-based)"]
+                FORMATTED_CONTENT["FormattedContent<br/>(HTML/Markdown render)"]
             end
 
             subgraph UI["UI Primitives (shadcn/ui)"]
@@ -169,7 +174,7 @@ graph TB
             subgraph REACT_QUERY["React Query Hooks"]
                 USE_TASKS["useTasks<br/>useTask<br/>useCreateTask<br/>useUpdateTask<br/>useDeleteTask<br/>useSetTaskParent<br/>useUpdateTaskChildren"]
                 USE_NOTES["useNotes<br/>useNote<br/>useCreateNote<br/>useUpdateNote<br/>useDeleteNote"]
-                USE_COMMENTS["useComments<br/>useCreateComment<br/>useDeleteComment"]
+                USE_COMMENTS["useComments<br/>useCreateComment<br/>useUpdateComment<br/>useDeleteComment"]
                 USE_TIME["useTimeEntries<br/>useTotalTime<br/>useStartTimer<br/>useStopTimer<br/>useAddManualEntry<br/>useUpdateTimeEntry<br/>useDeleteTimeEntry"]
             end
         end
@@ -189,6 +194,8 @@ graph TB
     PAGES --> COMPONENTS
     COMPONENTS --> UI
     COMPONENTS --> THEME
+    COMPONENTS --> NOTES_COMP
+    COMPONENTS --> RICH_TEXT
     COMPONENTS --> STATE
     STATE --> ZUSTAND
     STATE --> REACT_QUERY
@@ -217,7 +224,7 @@ graph TB
             AUTH_R["/api/v1/auth<br/>signup·login·me·refresh·logout<br/>config·oauth{prov}·oauth{prov}/callback<br/>forgot-password·reset-password·set-password"]
             TASK_R["/api/v1/tasks"]
             NOTE_R["/api/v1/notes"]
-            COMMENT_R["/api/v1/tasks/{id}/comments"]
+            COMMENT_R["/api/v1/tasks/{id}/comments<br/>POST · GET · PATCH /{cid} · DELETE /{cid}"]
             TIME_R["/api/v1/tasks/{id}/time<br/>POST (create) · GET (list) · GET /total<br/>PUT /{eid} (update) · DELETE /{eid} (delete)<br/>POST /start · POST /stop"]
             HISTORY_R["/api/v1/tasks/{id}/history"]
             SEARCH_R["/api/v1/search"]
@@ -242,7 +249,7 @@ graph TB
             S_TASK["TaskCreate/TaskUpdate<br/>TaskResponse/TaskListItem<br/>TaskListResponse<br/>UpdateChildrenRequest<br/>SetParentRequest"]
             S_NOTE["NoteCreate/NoteUpdate<br/>NoteResponse/NoteListResponse"]
             S_AUTH["SignupRequest/LoginRequest<br/>TokenResponse/UserResponse<br/>AuthConfigResponse/OAuthUrlResponse<br/>ForgotPasswordRequest/Response<br/>PasswordResetRequest/SetPasswordRequest"]
-            S_TIME["TimeEntryCreate/TimeEntryResponse<br/>TimeTrackingResponse"]
+            S_TIME["TimeEntryCreate/TimeEntryUpdate/TimeEntryResponse<br/>TimeTrackingResponse"]
             S_COMMENT["CommentCreate/CommentUpdate<br/>CommentResponse"]
             S_HISTORY["HistoryResponse"]
             BASE["AppBaseModel<br/>(Z datetime encoder)"]
@@ -450,6 +457,11 @@ The application uses 10 migration files with indexes targeting query patterns an
 - **Search flattens child tasks** — When a search keyword is active, the task list `useMemo` flattens child tasks into the standalone list. A parent goal badge (`Goal #N`) is shown above each flattened child for context. Normal grouping by goal is restored when search is cleared.
 - **Goal row field alignment** — Goal rows in the list match the standalone `TaskCard` column order: progress bar → status → priority → tags → time → created. Progress bar uses the same `transition-all duration-300 ease-in-out` as `TaskCard`.
 - **Time entry edit/delete** — Each time entry row has edit/delete buttons revealed on hover (`group-hover:opacity-100`). Edit mode shows inline inputs for duration (number, max 1440) and description. Updates are sent via `PUT /tasks/{task_id}/time/{entry_id}`, deletes via `DELETE /tasks/{task_id}/time/{entry_id}`. Both operations recalculate task total_time_spent on the server and log to task_history. Maximum duration is 1440 minutes (86400 seconds), validated on both frontend (slider max, button gating) and backend (Pydantic `@field_validator`).
+- **RichTextEditor (TipTap)** — Task descriptions and comments use a TipTap-based `RichTextEditor` component with full ProseMirror extensions: bold, italic, underline, strikethrough, headings (h1-h3), ordered/unordered lists, task lists, blockquote, code blocks (with syntax highlighting via `lowlight`), tables, links, images, text alignment, and highlight colors. A shared `EditorToolbar` component provides the UI controls.
+- **Markdown-to-HTML paste** — When pasting plain text containing markdown syntax (e.g., `# heading`, `**bold**`, `- list`), the editor converts it to HTML via the `marked` library. Implemented as a `useEffect`-based DOM paste listener that checks for plain text without HTML format, converts with `marked.parse()`, and inserts via `editor.commands.insertContent()`.
+- **`FormattedContent` component** — Renders rich text HTML with explicit Tailwind utility classes (table borders, list bullets, blockquote styling, code blocks, headings) instead of the `prose` class from `@tailwindcss/typography` (which is not installed).
+- **Markdown note toggle** — The `NoteEditor` has a Rich Text ↔ Markdown toggle button. In Markdown mode, content is edited as raw markdown. In view mode, the component auto-detects HTML vs markdown content and renders accordingly (`dangerouslySetInnerHTML` for HTML, `ReactMarkdown` + `remark-gfm` for markdown).
+- **Comment editor auto-height** — Comment editor uses `onInput` auto-height (scrollHeight) instead of a fixed height, adapting to content. Post-submit clearing uses a `key` prop counter to force component remount, avoiding TipTap's `setContent("")` race condition.
 
 ### Color & Theming
 - **Light mode**: warm brown/beige palette (`#f5f0eb` backgrounds, `#8b7355` accents).

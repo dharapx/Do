@@ -49,11 +49,13 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useTask, useUpdateTask, useTasks, useSetTaskParent, useUpdateTaskChildren } from "@/lib/hooks/use-tasks";
-import { useComments, useCreateComment, useDeleteComment } from "@/lib/hooks/use-comments";
+import { useComments, useCreateComment, useDeleteComment, useUpdateComment } from "@/lib/hooks/use-comments";
 import { useTimeEntries, useTotalTime, useStartTimer, useStopTimer, useAddManualEntry, useUpdateTimeEntry, useDeleteTimeEntry } from "@/lib/hooks/use-time";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
 import { type Task } from "@/lib/api/tasks";
 import { type TimeEntry } from "@/lib/api/time";
+import { type Comment } from "@/lib/api/comments";
+import { RichTextEditor, FormattedContent, isHtml } from "@/components/ui/rich-text-editor";
 
 interface TaskDetailProps {
   taskId: number;
@@ -79,6 +81,7 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
   const updateTask = useUpdateTask();
   const createComment = useCreateComment();
   const deleteComment = useDeleteComment();
+  const updateComment = useUpdateComment();
   const startTimer = useStartTimer();
   const stopTimer = useStopTimer();
   const addManualEntry = useAddManualEntry();
@@ -98,6 +101,9 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
   const [editDuration, setEditDuration] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editCommentContent, setEditCommentContent] = useState("");
+  const [commentKey, setCommentKey] = useState(0);
   const [goalOpen, setGoalOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [manageIds, setManageIds] = useState<number[]>(() =>
@@ -161,18 +167,24 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
   };
 
   const handleUpdateDesc = () => {
-    if (editedDesc !== (task.description || "")) {
-      updateTask.mutate({ id: taskId, data: { description: editedDesc.trim() || undefined } });
+    const cleanDesc = editedDesc === "<p></p>" || editedDesc === "<p><br></p>" ? "" : editedDesc;
+    if (cleanDesc !== (task.description || "")) {
+      updateTask.mutate({ id: taskId, data: { description: cleanDesc || undefined } });
     }
     setIsEditingDesc(false);
   };
 
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || commentText === "<p></p>" || commentText === "<p><br></p>") return;
     createComment.mutate(
-      { taskId, data: { content: commentText.trim() } },
-      { onSuccess: () => setCommentText("") }
+      { taskId, data: { content: commentText } },
+      {
+        onSuccess: () => {
+          setCommentText("");
+          setCommentKey((k) => k + 1);
+        },
+      }
     );
   };
 
@@ -223,6 +235,24 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
     if (confirm("Delete this time entry?")) {
       deleteTimeEntry.mutate({ taskId, entryId });
     }
+  };
+
+  const startEditComment = (comment: Comment) => {
+    setEditingCommentId(comment.id);
+    setEditCommentContent(comment.content || "");
+  };
+
+  const cancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditCommentContent("");
+  };
+
+  const handleUpdateComment = (commentId: number) => {
+    if (!editCommentContent || editCommentContent === "<p></p>" || editCommentContent === "<p><br></p>") return;
+    updateComment.mutate(
+      { taskId, commentId, data: { content: editCommentContent } },
+      { onSuccess: () => cancelEditComment() }
+    );
   };
 
   return (
@@ -339,14 +369,11 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
               <p className="text-xs text-muted-foreground mb-1">Description</p>
               {isEditingDesc ? (
                 <div className="space-y-2">
-                  <Textarea
-                    value={editedDesc}
-                    onChange={(e) => setEditedDesc(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") setIsEditingDesc(false);
-                    }}
-                    rows={3}
-                    autoFocus
+                  <RichTextEditor
+                    content={editedDesc}
+                    onChange={setEditedDesc}
+                    placeholder="Add a description..."
+                    minHeight="100px"
                   />
                   <div className="flex gap-2">
                     <Button size="sm" onClick={handleUpdateDesc}>Save</Button>
@@ -354,17 +381,23 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
                   </div>
                 </div>
               ) : (
-                <p
+                <div
                   className="text-sm text-foreground/80 cursor-pointer hover:text-foreground min-h-[2rem]"
                   onClick={() => {
                     setEditedDesc(task.description || "");
                     setIsEditingDesc(true);
                   }}
                 >
-                  {task.description || (
+                  {task.description ? (
+                    isHtml(task.description) ? (
+                      <FormattedContent html={task.description} />
+                    ) : (
+                      <span>{task.description}</span>
+                    )
+                  ) : (
                     <span className="text-muted-foreground italic">Add a description...</span>
                   )}
-                </p>
+                </div>
               )}
             </div>
 
@@ -578,16 +611,19 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
               </h3>
             </div>
 
-            <form onSubmit={handleAddComment} className="flex gap-2">
-              <Input
+            <form onSubmit={handleAddComment} className="space-y-2">
+              <RichTextEditor
+                key={commentKey}
+                content={commentText}
+                onChange={setCommentText}
                 placeholder="Add a comment..."
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                className="flex-1"
               />
-              <Button type="submit" size="icon" disabled={!commentText.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
+              <div className="flex justify-end">
+                <Button type="submit" size="sm" disabled={!commentText || commentText === "<p></p>" || commentText === "<p><br></p>"}>
+                  <Send className="h-3.5 w-3.5 mr-1.5" />
+                  Comment
+                </Button>
+              </div>
             </form>
 
             {commentsLoading ? (
@@ -596,23 +632,53 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
                 <Skeleton className="h-16 w-full" />
               </div>
             ) : comments && comments.length > 0 ? (
-              <div className="space-y-3 max-h-64 overflow-y-auto">
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
                 {comments.map((comment) => (
                   <div key={comment.id} className="rounded-lg bg-muted/50 p-3 group">
-                    <div className="flex items-start justify-between">
-                      <p className="text-sm whitespace-pre-wrap">{comment.content}</p>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 shrink-0"
-                        onClick={() => deleteComment.mutate({ taskId, commentId: comment.id })}
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      {format(new Date(comment.created_at), "MMM d, HH:mm")}
-                    </p>
+                    {editingCommentId === comment.id ? (
+                      <div className="space-y-2">
+                        <RichTextEditor
+                          content={editCommentContent}
+                          onChange={setEditCommentContent}
+                          placeholder="Edit comment..."
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <Button size="sm" onClick={() => handleUpdateComment(comment.id)} disabled={!editCommentContent || editCommentContent === "<p></p>" || editCommentContent === "<p><br></p>"}>
+                            Save
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={cancelEditComment}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-sm">
+                          {isHtml(comment.content) ? (
+                            <FormattedContent html={comment.content} />
+                          ) : (
+                            <span className="whitespace-pre-wrap">{comment.content}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <p className="text-[10px] text-muted-foreground">
+                            {format(new Date(comment.created_at), "MMM d, HH:mm")}
+                          </p>
+                          <button
+                            className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors opacity-0 group-hover:opacity-100"
+                            onClick={() => startEditComment(comment)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="text-[10px] text-muted-foreground/50 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                            onClick={() => deleteComment.mutate({ taskId, commentId: comment.id })}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>

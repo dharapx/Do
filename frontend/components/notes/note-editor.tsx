@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Save, Trash2, Pencil, Eye } from "lucide-react";
+import { Save, Trash2, Pencil, Eye, FileText, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useUpdateNote, useDeleteNote } from "@/lib/hooks/use-notes";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { tasksApi, type Task } from "@/lib/api/tasks";
@@ -22,6 +23,8 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { Note } from "@/lib/api/notes";
 
 const lowlight = createLowlight(common);
@@ -48,6 +51,8 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
   const [title, setTitle] = useState(note.title);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isMarkdown, setIsMarkdown] = useState(false);
+  const [markdownContent, setMarkdownContent] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestQuery, setSuggestQuery] = useState("");
   const [suggestionPos, setSuggestionPos] = useState({ top: 0, left: 0 });
@@ -231,21 +236,26 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
   }, [editing, refTaskMap]);
 
   const handleSave = () => {
-    if (!editor) return;
     setSaving(true);
-    const html = editor.getHTML();
+    const content = isMarkdown ? markdownContent : (editor?.getHTML() || "");
     updateNote.mutate(
-      { id: note.id, data: { title, content: html } },
+      { id: note.id, data: { title, content } },
       { onSettled: () => setSaving(false) }
     );
   };
 
   const handleStartEditing = () => {
+    const looksLikeMarkdown = note.content ? !note.content.startsWith("<") : false;
+    setIsMarkdown(looksLikeMarkdown);
+    if (looksLikeMarkdown) {
+      setMarkdownContent(note.content);
+    }
     setEditing(true);
   };
 
   const handleStopEditing = () => {
-    if (editor && (title !== note.title || editor.getHTML() !== note.content)) {
+    const currentContent = isMarkdown ? markdownContent : (editor?.getHTML() || "");
+    if (title !== note.title || currentContent !== note.content) {
       handleSave();
     }
     setEditing(false);
@@ -253,6 +263,16 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
 
   const handleDelete = () => {
     deleteNote.mutate(note.id, { onSuccess: onDelete });
+  };
+
+  const toggleFormat = () => {
+    if (isMarkdown) {
+      setIsMarkdown(false);
+      setMarkdownContent("");
+    } else {
+      setIsMarkdown(true);
+      setMarkdownContent(editor?.getText() || "");
+    }
   };
 
   useEffect(() => {
@@ -271,8 +291,12 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
   }, []);
 
   const hasChanges = useMemo(
-    () => title !== note.title || (editor ? editor.getHTML() !== note.content : false),
-    [title, note.title, editor, note.content]
+    () => {
+      if (title !== note.title) return true;
+      if (isMarkdown) return markdownContent !== note.content;
+      return editor ? editor.getHTML() !== note.content : false;
+    },
+    [title, note.title, editor, note.content, isMarkdown, markdownContent]
   );
 
   return (
@@ -301,6 +325,15 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
               >
                 <Save className="h-3.5 w-3.5" />
                 {saving ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={toggleFormat}
+                title={isMarkdown ? "Switch to Rich Text" : "Switch to Markdown"}
+              >
+                {isMarkdown ? <Type className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
               </Button>
               <Button
                 variant="outline"
@@ -337,35 +370,52 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
       {/* Body */}
       <div className="flex-1 overflow-y-auto relative">
         {editing ? (
-          <>
-            <EditorToolbar editor={editor} />
-            <EditorContent editor={editor} className="min-h-full" />
-            {showSuggestions && taskSuggestions.length > 0 && (
-              <div
-                ref={suggestionRef}
-                className="absolute z-50 rounded-lg border bg-popover shadow-lg max-h-40 overflow-y-auto min-w-[200px]"
-                style={{ top: suggestionPos.top, left: suggestionPos.left }}
-              >
-                {taskSuggestions.map((task) => (
-                  <button
-                    key={task.id}
-                    onClick={() => insertTaskRef(task)}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center gap-2"
-                  >
-                    <span className="text-primary font-mono shrink-0">@{task.id}</span>
-                    <span className="truncate"> — {task.title}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
+          isMarkdown ? (
+            <Textarea
+              value={markdownContent}
+              onChange={(e) => setMarkdownContent(e.target.value)}
+              className="min-h-full border-none rounded-none p-4 font-mono text-sm resize-none focus-visible:ring-0"
+              placeholder="Start writing in Markdown..."
+            />
+          ) : (
+            <>
+              <EditorToolbar editor={editor} />
+              <EditorContent editor={editor} className="min-h-full" />
+              {showSuggestions && taskSuggestions.length > 0 && (
+                <div
+                  ref={suggestionRef}
+                  className="absolute z-50 rounded-lg border bg-popover shadow-lg max-h-40 overflow-y-auto min-w-[200px]"
+                  style={{ top: suggestionPos.top, left: suggestionPos.left }}
+                >
+                  {taskSuggestions.map((task) => (
+                    <button
+                      key={task.id}
+                      onClick={() => insertTaskRef(task)}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center gap-2"
+                    >
+                      <span className="text-primary font-mono shrink-0">@{task.id}</span>
+                      <span className="truncate"> — {task.title}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )
         ) : (
           <div className="p-4" ref={viewRef}>
             {note.content ? (
-              <div
-                className="ProseMirror"
-                dangerouslySetInnerHTML={{ __html: note.content }}
-              />
+              note.content.startsWith("<") ? (
+                <div
+                  className="ProseMirror"
+                  dangerouslySetInnerHTML={{ __html: note.content }}
+                />
+              ) : (
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {note.content}
+                  </ReactMarkdown>
+                </div>
+              )
             ) : (
               <p className="text-muted-foreground italic text-sm">Empty note</p>
             )}

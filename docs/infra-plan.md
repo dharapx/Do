@@ -88,3 +88,12 @@ httpOnly cookies, refresh token rotation, GitHub/Google OAuth SSO, in-app passwo
 ## Phase 3 — Hardening
 
 Cloudflare WAF rules, CSP headers, monitoring.
+
+## Phase 3b — Rich Text Editing (done)
+
+- **TipTap editor** — Task descriptions and comments use a full-featured TipTap-based `RichTextEditor` with extensions: tables, task lists, code block syntax highlighting, text alignment, links, images, and highlight colors.
+- **Markdown notes** — Note editor has a Rich Text ↔ Markdown toggle button. Markdown content is rendered via `react-markdown` + `remark-gfm`. Content auto-detects HTML vs markdown on view.
+- **Formatted content** — `FormattedContent` component renders rich text HTML with explicit Tailwind utility classes (no typography plugin).
+- **Paste handler** — Pasting plain text with markdown syntax converts to HTML on the fly via `marked`.
+- **Comment edit/delete** — Inline edit with save/cancel, delete with confirmation, revealed on hover beside timestamp.
+- **Libraries added** — `marked` (markdown→HTML on paste), `react-markdown` + `remark-gfm` (markdown rendering), `lowlight` (code syntax highlighting in TipTap).

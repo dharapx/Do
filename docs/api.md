@@ -406,6 +406,38 @@ Calculates duration from `started_at` to current time and updates the entry (no 
 
 Returns chronological list of all changes made to a task.
 
+## Attachments
+
+### List Attachments
+`GET /tasks/{task_id}/attachments`
+
+### Upload Attachment
+`POST /tasks/{task_id}/attachments`
+
+Upload a file as `multipart/form-data` with field name `file`. Maximum file size is 10 MB.
+
+Response:
+```json
+{
+  "id": 1,
+  "task_id": 5,
+  "filename": "screenshot.png",
+  "mime_type": "image/png",
+  "size": 245760,
+  "created_at": "2026-06-13T12:00:00.000000Z"
+}
+```
+
+### Download Attachment
+`GET /tasks/{task_id}/attachments/{attachment_id}`
+
+Returns the file as a binary stream with the original filename.
+
+### Delete Attachment
+`DELETE /tasks/{task_id}/attachments/{attachment_id}`
+
+Deletes the file from disk and removes the database record.
+
 ## Notes
 
 ### List Notes

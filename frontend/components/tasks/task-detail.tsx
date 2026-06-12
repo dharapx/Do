@@ -48,13 +48,16 @@ import {
 } from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { useTask, useUpdateTask, useTasks, useSetTaskParent, useUpdateTaskChildren } from "@/lib/hooks/use-tasks";
+import { useTask, useUpdateTask, useTasks, useSetTaskParent, useUpdateTaskChildren, useDeleteTask } from "@/lib/hooks/use-tasks";
 import { useComments, useCreateComment, useDeleteComment, useUpdateComment } from "@/lib/hooks/use-comments";
 import { useTimeEntries, useTotalTime, useStartTimer, useStopTimer, useAddManualEntry, useUpdateTimeEntry, useDeleteTimeEntry } from "@/lib/hooks/use-time";
+import { useAttachments, useUploadAttachment, useDeleteAttachment } from "@/lib/hooks/use-attachments";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
 import { type Task } from "@/lib/api/tasks";
 import { type TimeEntry } from "@/lib/api/time";
 import { type Comment } from "@/lib/api/comments";
+import { type Attachment } from "@/lib/api/attachments";
+import { attachmentsApi } from "@/lib/api/attachments";
 import { RichTextEditor, FormattedContent, isHtml } from "@/components/ui/rich-text-editor";
 
 interface TaskDetailProps {
@@ -89,6 +92,10 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
   const deleteTimeEntry = useDeleteTimeEntry();
   const setTaskParent = useSetTaskParent();
   const updateTaskChildren = useUpdateTaskChildren();
+  const deleteTask = useDeleteTask();
+  const { data: attachments } = useAttachments(taskId);
+  const uploadAttachment = useUploadAttachment();
+  const deleteAttachment = useDeleteAttachment();
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
@@ -260,6 +267,20 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" onClick={() => router.push("/tasks")} className="shrink-0">
           <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={() => {
+            if (confirm(`Delete task "${task.title}"? This cannot be undone.`)) {
+              deleteTask.mutate(taskId, {
+                onSuccess: () => router.push("/tasks"),
+              });
+            }
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
@@ -797,6 +818,66 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
               <p className="text-sm text-muted-foreground text-center py-2">
                 No time entries
               </p>
+            )}
+          </div>
+
+          <div className="rounded-lg border p-4 space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Attachments
+            </h3>
+
+            <div>
+              <input
+                type="file"
+                id="file-upload"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    uploadAttachment.mutate({ taskId, file });
+                    e.target.value = "";
+                  }
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+                onClick={() => document.getElementById("file-upload")?.click()}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Upload File
+              </Button>
+            </div>
+
+            {attachments && attachments.length > 0 && (
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {attachments.map((att) => (
+                  <div key={att.id} className="flex items-center justify-between text-sm group">
+                    <button
+                      className="flex items-center gap-2 min-w-0 text-primary hover:underline truncate"
+                      onClick={() => attachmentsApi.download(taskId, att.id)}
+                    >
+                      <span className="truncate">{att.filename}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        ({att.size > 1024 ? `${(att.size / 1024).toFixed(1)} KB` : `${att.size} B`})
+                      </span>
+                    </button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive shrink-0"
+                      onClick={() => deleteAttachment.mutate({ taskId, attachmentId: att.id })}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {(!attachments || attachments.length === 0) && (
+              <p className="text-xs text-muted-foreground text-center py-2">No attachments</p>
             )}
           </div>
         </div>

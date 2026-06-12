@@ -8,5 +8,6 @@ from app.models.time_entry import TimeEntry
 from app.models.note import Note
 from app.models.refresh_token import RefreshToken
 from app.models.password_reset import PasswordReset
+from app.models.attachment import Attachment
 
-__all__ = ["Base", "User", "Task", "TaskComment", "TaskTag", "TaskHistory", "TimeEntry", "Note", "RefreshToken", "PasswordReset"]
+__all__ = ["Base", "User", "Task", "TaskComment", "TaskTag", "TaskHistory", "TimeEntry", "Note", "RefreshToken", "PasswordReset", "Attachment"]

@@ -11,7 +11,9 @@ A modern, production-ready task management application with goal/task hierarchy,
 - **Rich Text Editing** — TipTap-based rich text editor with full toolbar (bold, italic, underline, headings, lists, tables, code blocks, links, images, text alignment, highlight, undo/redo) for task descriptions and comments; formatted HTML rendering via `FormattedContent` with explicit Tailwind utility classes
 - **Markdown Notes** — Note editor with toggle between Rich Text and Markdown modes; view mode auto-detects HTML vs markdown and renders with `react-markdown` + `remark-gfm`
 - **Time Tracking** — Start/stop timers, add manual entries with inline edit/delete, max 1440 min per entry validated on both ends, view accumulated time per task, timeline chart on dashboard
-- **Activity History** — Immutable audit trail of all changes (status, priority, tags, description, time, comments)
+- **Activity History** — Immutable audit trail of all changes (status, priority, tags, description, time, comments, attachments)
+- **File Attachments** — Upload and download files attached to tasks (max 10 MB), with delete support; shown in task detail sidebar
+- **Delete from Detail** — Red delete button with confirmation dialog in task detail header
 - **Notes** — Rich text note editor with toggleable Markdown mode, auto-detected rendering
 - **Dashboard** — Charts (priority breakdown, status distribution), stats cards (urgent, high priority, progress), time timeline, recent activity, quick actions
 - **Authentication** — httpOnly cookie-based sessions with JWT access tokens (15 min), refresh token rotation (7 days, SHA256 hashed), and `Authorization: Bearer` fallback for cross-origin dev
@@ -91,8 +93,8 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 ├── backend/
 │   ├── alembic/              # Database migrations (10 migration files)
 │   ├── app/
-│   │   ├── api/v1/           # Route handlers (tasks, auth, comments, notes, time, history, search)
-│   │   ├── crud/             # Business logic layer (CRUDAuth with OAuth lookups)
+│   │   ├── api/v1/           # Route handlers (tasks, auth, comments, notes, time, history, search, attachments)
+│   │   ├── crud/             # Business logic layer (CRUDAuth, CRUDAttachment, ...)
 │   │   ├── models/           # SQLAlchemy models (User, Task, RefreshToken, PasswordReset, ...)
 │   │   ├── schemas/          # Pydantic v2 schemas
 │   │   ├── core/             # Auth utilities (JWT, bcrypt, refresh tokens, OAuth registry)
@@ -163,6 +165,10 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 | POST | `/api/v1/tasks/{id}/time/start` | Start timer |
 | POST | `/api/v1/tasks/{id}/time/stop` | Stop timer |
 | GET | `/api/v1/tasks/{id}/time/total` | Get total time |
+| POST | `/api/v1/tasks/{id}/attachments` | Upload file attachment (max 10 MB) |
+| GET | `/api/v1/tasks/{id}/attachments` | List attachments |
+| GET | `/api/v1/tasks/{id}/attachments/{att_id}` | Download attachment |
+| DELETE | `/api/v1/tasks/{id}/attachments/{att_id}` | Delete attachment |
 | GET | `/api/v1/tasks/{id}/history` | Get task history |
 | GET | `/api/v1/notes` | List notes |
 | POST | `/api/v1/notes` | Create note |

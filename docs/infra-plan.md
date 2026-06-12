@@ -85,10 +85,6 @@ httpOnly cookies, refresh token rotation, GitHub/Google OAuth SSO, in-app passwo
 - **Progress slider local state** — Dragging updates only local state; mutation fires once on pointer release.
 - **Time entry edit/delete** — `PUT /tasks/{id}/time/{eid}` and `DELETE /tasks/{id}/time/{eid}` with inline edit UI. Maximum 1440 min per entry, validated frontend + backend.
 
-## Phase 3 — Hardening
-
-Cloudflare WAF rules, CSP headers, monitoring.
-
 ## Phase 3b — Rich Text Editing (done)
 
 - **TipTap editor** — Task descriptions and comments use a full-featured TipTap-based `RichTextEditor` with extensions: tables, task lists, code block syntax highlighting, text alignment, links, images, and highlight colors.
@@ -97,3 +93,12 @@ Cloudflare WAF rules, CSP headers, monitoring.
 - **Paste handler** — Pasting plain text with markdown syntax converts to HTML on the fly via `marked`.
 - **Comment edit/delete** — Inline edit with save/cancel, delete with confirmation, revealed on hover beside timestamp.
 - **Libraries added** — `marked` (markdown→HTML on paste), `react-markdown` + `remark-gfm` (markdown rendering), `lowlight` (code syntax highlighting in TipTap).
+
+## Phase 4 — Attachments & Delete (done)
+
+- **File attachments** — `POST /tasks/{id}/attachments` (upload, max 10 MB), `GET /tasks/{id}/attachments` (list), `GET /tasks/{id}/attachments/{att_id}` (download), `DELETE /tasks/{id}/attachments/{att_id}` (delete). Files stored in Docker volume `uploads_data`. Migration 0009.
+- **Delete from detail** — Red trash button with confirmation dialog in task detail header; redirects to `/tasks` on success.
+
+## Phase 5 — Hardening (future)
+
+Cloudflare WAF rules, CSP headers, monitoring.

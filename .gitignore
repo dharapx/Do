@@ -14,3 +14,6 @@ backend/secrets/*.txt
 !backend/secrets/.gitkeep
 # Example templates are safe to commit
 !backend/secrets/*.txt.example
+
+# Build artifacts
+*.tsbuildinfo

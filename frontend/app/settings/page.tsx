@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { KeyRound } from "lucide-react";
+import { PasswordComplexity, isPasswordValid } from "@/components/ui/password-complexity";
 
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
@@ -18,24 +19,18 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const allFilled = currentPassword.trim() && newPassword.trim() && confirmPassword.trim();
+  const passwordsMatch = newPassword === confirmPassword;
+  const passwordValid = isPasswordValid(newPassword);
+  const canSubmit = allFilled && passwordsMatch && passwordValid && !loading;
+
   const handleSetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPassword.trim()) {
-      toast.error("Please enter a new password");
-      return;
-    }
-    if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
+    if (!canSubmit) return;
 
     setLoading(true);
     try {
-      await authApi.setPassword(currentPassword || null, newPassword);
+      await authApi.setPassword(currentPassword, newPassword);
       toast.success("Password updated!");
       setCurrentPassword("");
       setNewPassword("");
@@ -79,9 +74,9 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Password</CardTitle>
+          <CardTitle className="text-lg">Update Password</CardTitle>
           <CardDescription>
-            Set a backup password for your account. Useful if OAuth sign-in is unavailable.
+            All three fields are required to change your password.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -92,35 +87,39 @@ export default function SettingsPage() {
               <Input
                 id="current-password"
                 type="password"
-                placeholder="Leave blank if you only use OAuth"
+                placeholder="Enter your current password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
+                required
               />
-              <p className="text-xs text-muted-foreground">
-                If you signed up with Google/GitHub, leave this blank.
-              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="new-password">New Password</Label>
               <Input
                 id="new-password"
                 type="password"
-                placeholder="At least 6 characters"
+                placeholder="Choose a strong password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
+                required
               />
+              <PasswordComplexity password={newPassword} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Label htmlFor="confirm-password">Confirm New Password</Label>
               <Input
                 id="confirm-password"
                 type="password"
                 placeholder="Repeat your new password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                required
               />
+              {confirmPassword && !passwordsMatch && (
+                <p className="text-xs text-red-500">Passwords do not match</p>
+              )}
             </div>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={!canSubmit}>
               {loading ? "Saving..." : "Update Password"}
               {!loading && <KeyRound className="ml-2 h-4 w-4" />}
             </Button>

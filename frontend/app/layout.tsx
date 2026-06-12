@@ -120,7 +120,9 @@ export default function RootLayout({
               </MainLayout>
             </AuthGuard>
             <Toaster
-              position="bottom-right"
+              position="top-center"
+              richColors
+              closeButton
               toastOptions={{
                 className: "text-sm",
               }}

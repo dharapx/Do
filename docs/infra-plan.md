@@ -78,6 +78,13 @@ httpOnly cookies, refresh token rotation, GitHub/Google OAuth SSO, in-app passwo
 
 `ENABLE_GITHUB_OAUTH` / `ENABLE_GOOGLE_OAUTH` env vars with auto-detect. `GET /auth/config` endpoint for frontend to conditionally show OAuth buttons.
 
+## Phase 2c — UI & API Polish (done)
+
+- **Search flattens child tasks** — When search is active, child tasks appear as individual standalone cards with a parent goal badge.
+- **Notification position** — Changed from `bottom-right` to `top-center` for better visibility.
+- **Progress slider local state** — Dragging updates only local state; mutation fires once on pointer release.
+- **Time entry edit/delete** — `PUT /tasks/{id}/time/{eid}` and `DELETE /tasks/{id}/time/{eid}` with inline edit UI. Maximum 1440 min per entry, validated frontend + backend.
+
 ## Phase 3 — Hardening
 
 Cloudflare WAF rules, CSP headers, monitoring.

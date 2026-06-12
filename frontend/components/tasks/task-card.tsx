@@ -59,7 +59,7 @@ export function TaskCard({ task, onDelete }: TaskCardProps) {
         <div className="hidden md:flex w-16 items-center gap-1.5">
           <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
             <div
-              className="h-full rounded-full bg-primary transition-all"
+              className="h-full rounded-full bg-primary transition-all duration-300 ease-in-out"
               style={{ width: `${task.progress}%` }}
             />
           </div>

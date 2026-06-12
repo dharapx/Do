@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   timeApi,
   type ManualEntryData,
+  type UpdateEntryData,
 } from "@/lib/api/time";
 
 export function useTimeEntries(taskId: number | null) {
@@ -36,6 +37,40 @@ export function useAddManualEntry() {
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to add time entry");
+    },
+  });
+}
+
+export function useUpdateTimeEntry() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ taskId, entryId, data }: { taskId: number; entryId: number; data: UpdateEntryData }) =>
+      timeApi.updateTimeEntry(taskId, entryId, data),
+    onSuccess: (_, { taskId }) => {
+      queryClient.invalidateQueries({ queryKey: ["time-entries", taskId] });
+      queryClient.invalidateQueries({ queryKey: ["total-time", taskId] });
+      toast.success("Time entry updated");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update time entry");
+    },
+  });
+}
+
+export function useDeleteTimeEntry() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ taskId, entryId }: { taskId: number; entryId: number }) =>
+      timeApi.deleteTimeEntry(taskId, entryId),
+    onSuccess: (_, { taskId }) => {
+      queryClient.invalidateQueries({ queryKey: ["time-entries", taskId] });
+      queryClient.invalidateQueries({ queryKey: ["total-time", taskId] });
+      toast.success("Time entry deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete time entry");
     },
   });
 }

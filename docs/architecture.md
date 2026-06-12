@@ -52,7 +52,7 @@ graph TB
                 S_TASK["TaskCreate/Update/Response"]
                 S_NOTE["NoteCreate/Update/Response"]
                 S_AUTH["Signup/Login/Token<br/>AuthConfig/OAuthUrl/User<br/>ForgotPassword/PasswordReset<br/>SetPassword"]
-                S_TIME["TimeEntryCreate/Response"]
+                S_TIME["TimeEntryCreate/TimeEntryUpdate/TimeEntryResponse<br/>TimeTrackingResponse"]
                 S_COMMENT["CommentCreate/Response"]
                 S_HISTORY["HistoryResponse"]
             end
@@ -155,6 +155,7 @@ graph TB
             end
 
             THEME["ThemeProvider"]
+            COMPLEXITY["PasswordComplexity"]
         end
 
         subgraph STATE["State & Data Fetching"]
@@ -169,7 +170,7 @@ graph TB
                 USE_TASKS["useTasks<br/>useTask<br/>useCreateTask<br/>useUpdateTask<br/>useDeleteTask<br/>useSetTaskParent<br/>useUpdateTaskChildren"]
                 USE_NOTES["useNotes<br/>useNote<br/>useCreateNote<br/>useUpdateNote<br/>useDeleteNote"]
                 USE_COMMENTS["useComments<br/>useCreateComment<br/>useDeleteComment"]
-                USE_TIME["useTimeEntries<br/>useTotalTime<br/>useStartTimer<br/>useStopTimer<br/>useAddManualEntry"]
+                USE_TIME["useTimeEntries<br/>useTotalTime<br/>useStartTimer<br/>useStopTimer<br/>useAddManualEntry<br/>useUpdateTimeEntry<br/>useDeleteTimeEntry"]
             end
         end
 
@@ -217,7 +218,7 @@ graph TB
             TASK_R["/api/v1/tasks"]
             NOTE_R["/api/v1/notes"]
             COMMENT_R["/api/v1/tasks/{id}/comments"]
-            TIME_R["/api/v1/tasks/{id}/time"]
+            TIME_R["/api/v1/tasks/{id}/time<br/>POST (create) · GET (list) · GET /total<br/>PUT /{eid} (update) · DELETE /{eid} (delete)<br/>POST /start · POST /stop"]
             HISTORY_R["/api/v1/tasks/{id}/history"]
             SEARCH_R["/api/v1/search"]
             HEALTH_R["/health"]
@@ -232,7 +233,7 @@ graph TB
             TASK_CRUD["CRUDTask<br/>create · get · get_multi<br/>update · delete<br/>update_children · set_parent<br/>get_dashboard_stats"]
             NOTE_CRUD["CRUDNote<br/>create · get · get_multi<br/>update · delete"]
             COMMENT_CRUD["CRUDComment"]
-            TIME_CRUD["CRUDTimeEntry<br/>create · start_timer<br/>stop_timer · get_total<br/>get_timeline"]
+            TIME_CRUD["CRUDTimeEntry<br/>create · update_entry · delete_entry<br/>start_timer · stop_timer · get_total<br/>get_entries · get_time_timeline"]
             HISTORY_CRUD["CRUDHistory"]
             AUTH_CRUD["CRUDAuth<br/>signup·login·OAuth lookup/link/create<br/>set_password·get_by_*"]
         end
@@ -445,6 +446,10 @@ The application uses 10 migration files with indexes targeting query patterns an
 - **Combobox over native Select** — Goal/parent/reference pickers use `Popover` + `Command` + `cmdk` for searchability with 200+ items. Native `<Select>` is only for status/priority (small fixed sets).
 - **No Portal inside Dialog** — `SelectContent` and `PopoverContent` have `<Portal>` wrappers removed globally to prevent Radix focus-management crash when nested inside `Dialog` (known `@radix-ui/react-select@^2.0.0` bug).
 - **Local state + Save for goal management** — TaskDetail's "Manage Tasks" popover keeps `childIds` locally; only calls `updateTaskChildren` on Save button click, avoiding a mutation per add/remove.
+- **Progress slider with local state** — The range input updates a `localProgress` state variable on every `onChange` event for instant visual feedback, but only calls `updateTask.mutate` on `onPointerUp` (cursor release) or keyboard `onKeyUp`. A `useEffect` clears local state once the server value catches up via query cache invalidation. This prevents dozens of API calls and DB writes per drag.
+- **Search flattens child tasks** — When a search keyword is active, the task list `useMemo` flattens child tasks into the standalone list. A parent goal badge (`Goal #N`) is shown above each flattened child for context. Normal grouping by goal is restored when search is cleared.
+- **Goal row field alignment** — Goal rows in the list match the standalone `TaskCard` column order: progress bar → status → priority → tags → time → created. Progress bar uses the same `transition-all duration-300 ease-in-out` as `TaskCard`.
+- **Time entry edit/delete** — Each time entry row has edit/delete buttons revealed on hover (`group-hover:opacity-100`). Edit mode shows inline inputs for duration (number, max 1440) and description. Updates are sent via `PUT /tasks/{task_id}/time/{entry_id}`, deletes via `DELETE /tasks/{task_id}/time/{entry_id}`. Both operations recalculate task total_time_spent on the server and log to task_history. Maximum duration is 1440 minutes (86400 seconds), validated on both frontend (slider max, button gating) and backend (Pydantic `@field_validator`).
 
 ### Color & Theming
 - **Light mode**: warm brown/beige palette (`#f5f0eb` backgrounds, `#8b7355` accents).

@@ -6,9 +6,9 @@ A modern, production-ready task management application with goal/task hierarchy,
 
 - **Two-Level Hierarchy** — Goals (parent tasks) with nested child tasks; goals auto-compute aggregate progress from children
 - **Reference Links** — Non-hierarchical "see also" connections between any tasks
-- **Task Management** — Create, update, delete tasks with title, description, priority, tags, and type (task/goal)
-- **Advanced Filtering** — Multi-select status/priority dropdowns, filter by tags, date range, keyword; full-text search across titles, descriptions, and comments
-- **Time Tracking** — Start/stop timers, add manual entries, view accumulated time per task, timeline chart on dashboard
+- **Task Management** — Create, update, delete tasks with title, description, priority, tags, and type (task/goal); progress slider with local state for smooth drag-and-drop
+- **Advanced Filtering** — Multi-select status/priority dropdowns, filter by tags, date range, keyword; full-text search across titles, descriptions, and comments; search flattens child tasks into standalone results
+- **Time Tracking** — Start/stop timers, add manual entries with inline edit/delete, max 1440 min per entry validated on both ends, view accumulated time per task, timeline chart on dashboard
 - **Activity History** — Immutable audit trail of all changes (status, priority, tags, description, time, comments)
 - **Notes** — Rich text note editor with persistent storage
 - **Dashboard** — Charts (priority breakdown, status distribution), stats cards (urgent, high priority, progress), time timeline, recent activity, quick actions
@@ -155,7 +155,9 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 | PATCH | `/api/v1/tasks/{id}/comments/{cid}` | Edit comment |
 | DELETE | `/api/v1/tasks/{id}/comments/{cid}` | Delete comment |
 | GET | `/api/v1/tasks/{id}/time` | List time entries |
-| POST | `/api/v1/tasks/{id}/time` | Add manual time entry |
+| POST | `/api/v1/tasks/{id}/time` | Add manual time entry (max 1440 min) |
+| PUT | `/api/v1/tasks/{id}/time/{eid}` | Update time entry |
+| DELETE | `/api/v1/tasks/{id}/time/{eid}` | Delete time entry |
 | POST | `/api/v1/tasks/{id}/time/start` | Start timer |
 | POST | `/api/v1/tasks/{id}/time/stop` | Stop timer |
 | GET | `/api/v1/tasks/{id}/time/total` | Get total time |

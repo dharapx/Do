@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { authApi } from "@/lib/api/auth";
 import { toast } from "sonner";
+import { PasswordComplexity, isPasswordValid } from "@/components/ui/password-complexity";
 
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState<"username" | "action" | "reset">("username");
@@ -18,6 +19,9 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [oauthProviders, setOauthProviders] = useState<string[]>([]);
   const [displayedCode, setDisplayedCode] = useState<string | null>(null);
+
+  const passwordValid = isPasswordValid(newPassword);
+  const canReset = resetCode.trim() && newPassword.trim() && passwordValid && !loading;
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,14 +60,7 @@ export default function ForgotPasswordPage() {
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetCode.trim() || !newPassword.trim()) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-    if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
+    if (!canReset) return;
     setLoading(true);
     try {
       await authApi.resetPassword(resetCode.trim(), newPassword);
@@ -169,14 +166,15 @@ export default function ForgotPasswordPage() {
                 <Input
                   id="new-password"
                   type="password"
-                  placeholder="At least 6 characters"
+                  placeholder="Choose a strong password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
+                <PasswordComplexity password={newPassword} />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full" disabled={!canReset}>
                 {loading ? "Resetting..." : "Reset Password"}
                 {!loading && <KeyRound className="ml-2 h-4 w-4" />}
               </Button>

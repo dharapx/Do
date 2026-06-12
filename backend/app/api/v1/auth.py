@@ -289,6 +289,9 @@ def reset_password(data: PasswordResetRequest, db=Depends(get_db)):
 
 @router.post("/set-password")
 def set_password(data: SetPasswordRequest, db=Depends(get_db), current_user=Depends(get_current_user)):
+    has_oauth = bool(current_user.github_id or current_user.google_id)
+    if not has_oauth and not data.current_password:
+        raise HTTPException(status_code=400, detail="Current password is required")
     if data.current_password:
         if not verify_password(data.current_password, current_user.hashed_password):
             raise HTTPException(status_code=400, detail="Current password is incorrect")

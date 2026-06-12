@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { authApi } from "@/lib/api/auth";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { toast } from "sonner";
+import { PasswordComplexity, isPasswordValid } from "@/components/ui/password-complexity";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -22,20 +23,14 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const allFilled = username.trim() && email.trim() && password.trim() && confirmPassword.trim();
+  const passwordsMatch = password === confirmPassword;
+  const passwordValid = isPasswordValid(password);
+  const canSubmit = allFilled && passwordsMatch && passwordValid && !loading;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !email.trim() || !password.trim()) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-    if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
+    if (!canSubmit) return;
 
     setLoading(true);
     try {
@@ -104,6 +99,7 @@ export default function SignupPage() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              <PasswordComplexity password={password} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
@@ -114,10 +110,13 @@ export default function SignupPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
+              {confirmPassword && !passwordsMatch && (
+                <p className="text-xs text-red-500">Passwords do not match</p>
+              )}
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={!canSubmit}>
               {loading ? "Creating account..." : "Create Account"}
               {!loading && <UserPlus className="ml-2 h-4 w-4" />}
             </Button>

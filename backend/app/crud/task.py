@@ -306,17 +306,18 @@ class CRUDTask:
         existing_ids = {c.id for c in goal.children}
         new_ids = set(child_ids)
 
-        # Validate all new children exist, are tasks, belong to user, and aren't done
-        if new_ids:
+        # Validate only NEW children being added (not already-existing ones)
+        to_add = new_ids - existing_ids
+        if to_add:
             tasks = (
                 db.execute(
-                    select(Task).where(Task.id.in_(new_ids), Task.user_id == user_id)
+                    select(Task).where(Task.id.in_(to_add), Task.user_id == user_id)
                 )
                 .scalars()
                 .all()
             )
             found_ids = {t.id for t in tasks}
-            missing = new_ids - found_ids
+            missing = to_add - found_ids
             if missing:
                 raise ValueError(f"Tasks not found: {missing}")
 
@@ -327,7 +328,6 @@ class CRUDTask:
                     raise ValueError(f"Task {t.id} is done and cannot be reassigned")
 
         # Add new children
-        to_add = new_ids - existing_ids
         if to_add:
             db.execute(
                 Task.__table__.update()

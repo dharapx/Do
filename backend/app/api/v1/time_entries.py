@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 
 from app.api.deps import get_db, get_current_user
 from app.crud.time_entry import time_entry_crud
-from app.schemas.time_entry import TimeEntryCreate, TimeEntryResponse, TimeTrackingResponse
+from app.schemas.time_entry import TimeEntryCreate, TimeEntryUpdate, TimeEntryResponse, TimeTrackingResponse
 
 router = APIRouter(prefix="/tasks/{task_id}/time", tags=["time"])
 
@@ -34,3 +34,18 @@ def stop_timer(task_id: int, db=Depends(get_db), current_user=Depends(get_curren
     if not entry:
         raise HTTPException(status_code=404, detail="No running timer found for this task")
     return entry
+
+
+@router.put("/{entry_id}", response_model=TimeEntryResponse)
+def update_time_entry(task_id: int, entry_id: int, data: TimeEntryUpdate, db=Depends(get_db), current_user=Depends(get_current_user)):
+    entry = time_entry_crud.update_entry(db, task_id, entry_id, data, current_user.id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Time entry not found")
+    return entry
+
+
+@router.delete("/{entry_id}", status_code=204)
+def delete_time_entry(task_id: int, entry_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
+    deleted = time_entry_crud.delete_entry(db, task_id, entry_id, current_user.id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Time entry not found")

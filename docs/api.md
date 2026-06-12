@@ -357,12 +357,31 @@ Response: `{ task_id: number, total_time: number }`
 ### Add Manual Entry
 `POST /tasks/{task_id}/time`
 
+Maximum duration is 1440 minutes (86400 seconds).
+
 ```json
 {
   "duration": 3600,
   "description": "Worked on feature X"
 }
 ```
+
+### Update Time Entry
+`PUT /tasks/{task_id}/time/{entry_id}`
+
+Updates duration and/or description of an existing time entry. Maximum duration is 1440 minutes (86400 seconds).
+
+```json
+{
+  "duration": 1800,
+  "description": "Updated description"
+}
+```
+
+### Delete Time Entry
+`DELETE /tasks/{task_id}/time/{entry_id}`
+
+Deletes a time entry and recalculates the task's total time spent.
 
 ### Start Timer
 `POST /tasks/{task_id}/time/start`
@@ -372,11 +391,7 @@ Creates a new time entry with `started_at` set to current time.
 ### Stop Timer
 `POST /tasks/{task_id}/time/stop`
 
-```json
-{ "entry_id": 123 }
-```
-
-Calculates duration from `started_at` to current time and updates the entry.
+Calculates duration from `started_at` to current time and updates the entry (no request body).
 
 ## History
 

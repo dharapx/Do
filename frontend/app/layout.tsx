@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { useAuthStore } from "@/lib/store/auth-store";
+import { authApi } from "@/lib/api/auth";
 import "./globals.css";
 
 const inter = Inter({
@@ -16,30 +17,73 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-const publicPaths = ["/login", "/signup"];
+const publicPaths = ["/login", "/signup", "/forgot-password"];
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const setTokens = useAuthStore((s) => s.setTokens);
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const [checked, setChecked] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!hasHydrated) return;
+
+    const hash = window.location.hash;
+    if (hash && hash.includes("access_token=")) {
+      const params = new URLSearchParams(hash.slice(1));
+      const at = params.get("access_token");
+      const rt = params.get("refresh_token");
+      if (at) {
+        setTokens(at, rt);
+        window.location.hash = "";
+        setLoading(true);
+        authApi.getMe()
+          .then((u) => {
+            setAuth(u);
+            setChecked(true);
+          })
+          .catch(() => {
+            router.replace("/login");
+          })
+          .finally(() => setLoading(false));
+        return;
+      }
+    }
+
     if (publicPaths.includes(pathname)) {
       setChecked(true);
       return;
     }
-    if (!token) {
-      router.replace("/login");
+
+    if (user) {
+      setChecked(true);
       return;
     }
-    setChecked(true);
-  }, [token, pathname, router, hasHydrated]);
+
+    if (loading) return;
+    setLoading(true);
+
+    authApi.getMe()
+      .then((u) => {
+        setAuth(u);
+        setChecked(true);
+      })
+      .catch(() => {
+        router.replace("/login");
+      })
+      .finally(() => setLoading(false));
+  }, [pathname, router, hasHydrated, user, setAuth, setTokens, loading]);
 
   if (!checked) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
   }
 
   return <>{children}</>;
@@ -100,14 +144,14 @@ function MainLayout({
   closeSidebar: () => void;
 }) {
   const pathname = usePathname();
-  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const isPublic = publicPaths.includes(pathname);
 
   if (isPublic) {
     return <>{children}</>;
   }
 
-  if (!token) {
+  if (!user) {
     return null;
   }
 

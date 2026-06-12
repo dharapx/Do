@@ -39,14 +39,13 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      const tokenRes = await authApi.signup({
+      await authApi.signup({
         username: username.trim(),
         email: email.trim(),
         password,
       });
-      setAuth(tokenRes.access_token, null);
       const user = await authApi.getMe();
-      setAuth(tokenRes.access_token, user);
+      setAuth(user);
       toast.success("Account created!");
       router.push("/dashboard");
     } catch (err: any) {

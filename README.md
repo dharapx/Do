@@ -12,6 +12,9 @@ A modern, production-ready task management application with goal/task hierarchy,
 - **Activity History** — Immutable audit trail of all changes (status, priority, tags, description, time, comments)
 - **Notes** — Rich text note editor with persistent storage
 - **Dashboard** — Charts (priority breakdown, status distribution), stats cards (urgent, high priority, progress), time timeline, recent activity, quick actions
+- **Authentication** — httpOnly cookie-based sessions with JWT access tokens (15 min), refresh token rotation (7 days, SHA256 hashed), and `Authorization: Bearer` fallback for cross-origin dev
+- **OAuth SSO** — Sign in with GitHub or Google; auto-links by email; configurable toggle via env vars
+- **Password Management** — In-app password reset (no SMTP required), set-password for OAuth users
 - **Dark Mode** — System-aware theming with warm light (brown/beige) and dark (charcoal) palettes, glass morphism cards
 - **Responsive** — Works on desktop and mobile devices
 
@@ -19,7 +22,7 @@ A modern, production-ready task management application with goal/task hierarchy,
 
 **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui + Radix UI + cmdk, React Query (TanStack), Zustand, date-fns, Recharts, Lucide icons
 
-**Backend**: FastAPI, SQLAlchemy 2.0, Alembic, Pydantic v2, JWT auth
+**Backend**: FastAPI, SQLAlchemy 2.0, Alembic, Pydantic v2, JWT + refresh tokens, Authlib OAuth, bcrypt
 
 **Database**: PostgreSQL 15 (via PgBouncer connection pooler)
 
@@ -84,17 +87,19 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 
 ```
 ├── backend/
-│   ├── alembic/              # Database migrations (7 migration files)
+│   ├── alembic/              # Database migrations (10 migration files)
 │   ├── app/
 │   │   ├── api/v1/           # Route handlers (tasks, auth, comments, notes, time, history, search)
-│   │   ├── crud/             # Business logic layer
-│   │   ├── models/           # SQLAlchemy models
+│   │   ├── crud/             # Business logic layer (CRUDAuth with OAuth lookups)
+│   │   ├── models/           # SQLAlchemy models (User, Task, RefreshToken, PasswordReset, ...)
 │   │   ├── schemas/          # Pydantic v2 schemas
-│   │   ├── core/             # Auth utilities
+│   │   ├── core/             # Auth utilities (JWT, bcrypt, refresh tokens, OAuth registry)
 │   │   ├── cache.py          # Redis-backed dashboard cache (TTL 30s)
-│   │   ├── config.py         # Application settings
+│   │   ├── config.py         # Application settings (Docker Secrets, OAuth flags)
 │   │   ├── database.py       # Database connection (pool_size=10, overflow=20)
-│   │   └── main.py           # FastAPI app + CORS + ZJSONResponse
+│   │   └── main.py           # FastAPI app + CORS + SessionMiddleware + ZJSONResponse
+│   ├── secrets/              # Docker Secrets (gitignored *.txt, committed *.txt.example)
+│   │   └── .gitkeep
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
@@ -116,7 +121,8 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 │   └── init.sql
 ├── docs/
 │   ├── api.md                # API endpoint reference
-│   └── architecture.md       # System architecture, key decisions, diagrams
+│   ├── architecture.md       # System architecture, key decisions, diagrams
+│   └── infra-plan.md         # Production deployment plan (Cloudflare Tunnel + Traefik)
 ├── docker-compose.yml
 └── README.md
 ```
@@ -126,7 +132,15 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/v1/auth/signup` | Create account |
-| POST | `/api/v1/auth/login` | Login |
+| POST | `/api/v1/auth/login` | Login (sets httpOnly cookies) |
+| GET | `/api/v1/auth/me` | Get current user profile |
+| POST | `/api/v1/auth/refresh` | Rotate tokens |
+| POST | `/api/v1/auth/logout` | Revoke all refresh tokens |
+| GET | `/api/v1/auth/config` | Get enabled OAuth providers |
+| GET | `/api/v1/auth/oauth/{provider}` | Get OAuth authorization URL |
+| POST | `/api/v1/auth/forgot-password` | Request password reset code |
+| POST | `/api/v1/auth/reset-password` | Redeem reset code |
+| POST | `/api/v1/auth/set-password` | Set password for OAuth user |
 | GET | `/api/v1/tasks` | List tasks (filter, sort, paginate) |
 | POST | `/api/v1/tasks` | Create a task (or goal) |
 | GET | `/api/v1/tasks/{id}` | Get task details |
@@ -159,27 +173,45 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string (via PgBouncer) | `postgresql+psycopg://todos_user:todos_pass@pgbouncer:5432/todos_app` |
-| `SECRET_KEY` | JWT secret key | `change-me-in-production` |
-| `CORS_ORIGINS` | Comma-separated allowed origins | `http://localhost:3000` |
+| `SECRET_KEY` | JWT signing key (use Docker Secret in prod) | `dev-secret-key` |
 | `REDIS_URL` | Redis connection string | `redis://redis:6379/0` |
+| `CORS_ORIGINS` | Comma-separated allowed origins | `http://localhost:3000,http://localhost:3001,...` |
+| `FRONTEND_URL` | Frontend URL for OAuth redirects | `http://localhost:3001` |
+| `OAUTH_REDIRECT_BASE` | Backend base URL for OAuth callbacks | `http://localhost:8000` |
+| `GITHUB_CLIENT_ID` | GitHub OAuth App client ID | _(Docker Secret)_ |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret | _(Docker Secret)_ |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID | _(Docker Secret)_ |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | _(Docker Secret)_ |
+| `ENABLE_GITHUB_OAUTH` | Force enable/disable GitHub OAuth | `true` (auto-detect if unset) |
+| `ENABLE_GOOGLE_OAUTH` | Force enable/disable Google OAuth | `true` (auto-detect if unset) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | JWT access token lifetime | `15` |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime | `7` |
+| `COOKIE_DOMAIN` | Cookie domain (set for subdomain sharing) | _(none)_ |
+| `DEBUG` | Enable debug mode (insecure cookies) | `true` |
 | `NEXT_PUBLIC_API_URL` | API base URL for frontend | `http://localhost:8000/api/v1` |
+
+Secrets can also be provided via Docker Secrets: mount files at `/run/secrets/<name>` (supported names: `secret_key`, `github_client_id`, `github_client_secret`, `google_client_id`, `google_client_secret`). See `backend/secrets/*.txt.example` for the full list.
 
 ## Connection Flow
 
 ```
 Frontend (port 3000) ──HTTP──> Backend FastAPI (port 8000)
-                                    │
-                                    ├── PgBouncer (port 5432, transaction pool: 25)
-                                    │       │
-                                    │       └── PostgreSQL 15 (max_connections=100)
-                                    │
-                                    └── Redis 7 (port 6379, AOF persistence)
-                                            └── Dashboard stats cache (TTL 30s)
+                       ↑ Cookies/Bearer         │
+                     (access_token 15min)        ├── PgBouncer (port 5432, transaction pool: 25)
+                     (refresh_token 7d)          │       │
+                        rotation on 401          │       └── PostgreSQL 15 (max_connections=100)
+                                                 │
+                                                 ├── Redis 7 (port 6379, AOF persistence)
+                                                 │       └── Dashboard stats cache (TTL 30s)
+                                                 │
+                                                 └── Session (OAuth state CSRF)
 ```
+
+**Auth flow:** Login/Signup sets httpOnly cookies. On 401, frontend calls `/auth/refresh` to rotate tokens (old refresh token revoked, new pair issued). For OAuth, tokens arrive via URL hash fragment (`#access_token=...&refresh_token=...`) and are sent as `Authorization: Bearer` header.
 
 ## Database
 
-Tables are managed via Alembic migrations (7 migration files). To create a new migration:
+Tables are managed via Alembic migrations (10 migration files). To create a new migration:
 
 ```bash
 cd backend

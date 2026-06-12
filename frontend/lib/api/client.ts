@@ -1,9 +1,10 @@
-const API_PORT = "8000";
-
 function getBaseUrl(): string {
   if (typeof window !== "undefined") {
-    const hostname = window.location.hostname;
-    return `http://${hostname}:${API_PORT}/api/v1`;
+    const { protocol, hostname } = window.location;
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      return process.env.NEXT_PUBLIC_API_URL;
+    }
+    return `${protocol}//${hostname}:8000/api/v1`;
   }
   return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 }
@@ -18,15 +19,47 @@ export class ApiError extends Error {
   }
 }
 
-function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
+let isRefreshing = false;
+let refreshQueue: Array<{ resolve: (value: boolean) => void; reject: (err: Error) => void }> = [];
+
+function getStore() {
+  if (typeof window !== "undefined") {
+    return (window as any).__ZUSTAND_STORE__;
+  }
+  return null;
+}
+
+async function attemptRefresh(): Promise<boolean> {
+  if (isRefreshing) {
+    return new Promise<boolean>((resolve, reject) => {
+      refreshQueue.push({ resolve, reject });
+    });
+  }
+
+  isRefreshing = true;
   try {
-    const raw = localStorage.getItem("auth-storage");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed?.state?.token || null;
+    const BASE_URL = getBaseUrl();
+    const store = getStore();
+    const rt = store ? store.getState().refreshToken : null;
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      headers: rt ? { "Authorization": `Bearer ${rt}` } : { "Content-Type": "application/json" },
+    });
+    if (!res.ok) {
+    refreshQueue.forEach((q) => q.reject(new Error("Refresh failed")));
+    refreshQueue = [];
+    return false;
+  }
+    refreshQueue.forEach((q) => q.resolve(true));
+    refreshQueue = [];
+    return true;
   } catch {
-    return null;
+    refreshQueue.forEach((q) => q.reject(new Error("Refresh failed")));
+    refreshQueue = [];
+    return false;
+  } finally {
+    isRefreshing = false;
   }
 }
 
@@ -41,7 +74,8 @@ async function request<T>(
     "Content-Type": "application/json",
   };
 
-  const token = getAuthToken();
+  const store = getStore();
+  const token = store ? store.getState().accessToken : null;
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -51,17 +85,29 @@ async function request<T>(
       ...headers,
       ...(options.headers as Record<string, string>),
     },
+    credentials: "include",
     ...options,
   };
 
-  const response = await fetch(url, config);
+  let response = await fetch(url, config);
 
   if (response.status === 401) {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("auth-storage");
-      window.location.href = "/login";
+    if (endpoint === "/auth/refresh") {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+      throw new ApiError(401, "Unauthorized");
     }
-    throw new ApiError(401, "Unauthorized");
+
+    const refreshed = await attemptRefresh();
+    if (refreshed) {
+      response = await fetch(url, config);
+    } else {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+      throw new ApiError(401, "Unauthorized");
+    }
   }
 
   if (!response.ok) {

@@ -20,6 +20,8 @@ import {
   ListTodo,
   Link2,
   ChevronsUpDown,
+  MoreVertical,
+  Paperclip,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,13 +50,22 @@ import {
 } from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { useTask, useUpdateTask, useTasks, useSetTaskParent, useUpdateTaskChildren } from "@/lib/hooks/use-tasks";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useTask, useUpdateTask, useTasks, useSetTaskParent, useUpdateTaskChildren, useDeleteTask } from "@/lib/hooks/use-tasks";
 import { useComments, useCreateComment, useDeleteComment, useUpdateComment } from "@/lib/hooks/use-comments";
 import { useTimeEntries, useTotalTime, useStartTimer, useStopTimer, useAddManualEntry, useUpdateTimeEntry, useDeleteTimeEntry } from "@/lib/hooks/use-time";
+import { useAttachments, useUploadAttachment, useDeleteAttachment } from "@/lib/hooks/use-attachments";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
 import { type Task } from "@/lib/api/tasks";
 import { type TimeEntry } from "@/lib/api/time";
 import { type Comment } from "@/lib/api/comments";
+import { type Attachment } from "@/lib/api/attachments";
+import { attachmentsApi } from "@/lib/api/attachments";
 import { RichTextEditor, FormattedContent, isHtml } from "@/components/ui/rich-text-editor";
 
 interface TaskDetailProps {
@@ -89,6 +100,10 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
   const deleteTimeEntry = useDeleteTimeEntry();
   const setTaskParent = useSetTaskParent();
   const updateTaskChildren = useUpdateTaskChildren();
+  const deleteTask = useDeleteTask();
+  const { data: attachments } = useAttachments(taskId);
+  const uploadAttachment = useUploadAttachment();
+  const deleteAttachment = useDeleteAttachment();
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
@@ -261,6 +276,28 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
         <Button variant="ghost" size="icon" onClick={() => router.push("/tasks")} className="shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="shrink-0">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => {
+                if (confirm(`Delete task "${task.title}"? This cannot be undone.`)) {
+                  deleteTask.mutate(taskId, {
+                    onSuccess: () => router.push("/tasks"),
+                  });
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete task
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
             <span className="flex items-center gap-1">
@@ -512,6 +549,67 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
                 ` · Updated ${format(new Date(task.updated_at), "MMM d, yyyy HH:mm")}`
               }
             </p>
+          </div>
+
+          <div className="rounded-lg border p-4 space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Paperclip className="h-4 w-4" />
+              Attachments
+              <div className="ml-auto">
+                <input
+                  type="file"
+                  id="file-upload"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      uploadAttachment.mutate({ taskId, file });
+                      e.target.value = "";
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => document.getElementById("file-upload")?.click()}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Upload
+                </Button>
+              </div>
+            </h3>
+
+            {attachments && attachments.length > 0 ? (
+              <div className="space-y-1">
+                {attachments.map((att) => (
+                  <div key={att.id} className="flex items-center justify-between text-sm group -mx-4 px-4 py-1 hover:bg-muted/50 transition-colors">
+                    <button
+                      className="flex items-center gap-2 min-w-0 text-primary hover:underline truncate"
+                      onClick={() => attachmentsApi.download(taskId, att.id)}
+                    >
+                      <Paperclip className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{att.filename}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        ({att.size > 1024 ? `${(att.size / 1024).toFixed(1)} KB` : `${att.size} B`})
+                      </span>
+                    </button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive shrink-0"
+                      onClick={() => deleteAttachment.mutate({ taskId, attachmentId: att.id })}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-2 italic">
+                Drop a file or click Upload to attach
+              </p>
+            )}
           </div>
 
           {task.type === "goal" && (

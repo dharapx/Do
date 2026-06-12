@@ -33,3 +33,4 @@ class Task(Base):
     tags = relationship("TaskTag", back_populates="task", cascade="all, delete-orphan")
     history = relationship("TaskHistory", back_populates="task", cascade="all, delete-orphan")
     time_entries = relationship("TimeEntry", back_populates="task", cascade="all, delete-orphan")
+    attachments = relationship("Attachment", back_populates="task", cascade="all, delete-orphan")

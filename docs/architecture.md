@@ -226,6 +226,7 @@ graph TB
             NOTE_R["/api/v1/notes"]
             COMMENT_R["/api/v1/tasks/{id}/comments<br/>POST · GET · PATCH /{cid} · DELETE /{cid}"]
             TIME_R["/api/v1/tasks/{id}/time<br/>POST (create) · GET (list) · GET /total<br/>PUT /{eid} (update) · DELETE /{eid} (delete)<br/>POST /start · POST /stop"]
+            ATTACHMENT_R["/api/v1/tasks/{id}/attachments<br/>POST · GET · GET /{att_id} · DELETE /{att_id}"]
             HISTORY_R["/api/v1/tasks/{id}/history"]
             SEARCH_R["/api/v1/search"]
             HEALTH_R["/health"]
@@ -241,6 +242,7 @@ graph TB
             NOTE_CRUD["CRUDNote<br/>create · get · get_multi<br/>update · delete"]
             COMMENT_CRUD["CRUDComment"]
             TIME_CRUD["CRUDTimeEntry<br/>create · update_entry · delete_entry<br/>start_timer · stop_timer · get_total<br/>get_entries · get_time_timeline"]
+            ATTACHMENT_CRUD["CRUDAttachment<br/>create · get_attachments · get_by_id · delete"]
             HISTORY_CRUD["CRUDHistory"]
             AUTH_CRUD["CRUDAuth<br/>signup·login·OAuth lookup/link/create<br/>set_password·get_by_*"]
         end
@@ -250,6 +252,7 @@ graph TB
             S_NOTE["NoteCreate/NoteUpdate<br/>NoteResponse/NoteListResponse"]
             S_AUTH["SignupRequest/LoginRequest<br/>TokenResponse/UserResponse<br/>AuthConfigResponse/OAuthUrlResponse<br/>ForgotPasswordRequest/Response<br/>PasswordResetRequest/SetPasswordRequest"]
             S_TIME["TimeEntryCreate/TimeEntryUpdate/TimeEntryResponse<br/>TimeTrackingResponse"]
+            S_ATTACHMENT["AttachmentResponse"]
             S_COMMENT["CommentCreate/CommentUpdate<br/>CommentResponse"]
             S_HISTORY["HistoryResponse"]
             BASE["AppBaseModel<br/>(Z datetime encoder)"]
@@ -314,6 +317,7 @@ erDiagram
     tasks ||--o{ task_tags : "task_id FK CASCADE"
     tasks ||--o{ task_history : "task_id FK CASCADE"
     tasks ||--o{ time_entries : "task_id FK CASCADE"
+    tasks ||--o{ attachments : "task_id FK CASCADE"
     tasks ||--o| tasks : "parent_id FK (self-ref)"
     tasks ||--o| tasks : "reference_id FK (self-ref)"
 
@@ -393,6 +397,17 @@ erDiagram
         datetime created_at
     }
 
+    attachments {
+        int id PK
+        int task_id FK
+        int user_id FK
+        string filename
+        string stored_path
+        string mime_type
+        int size "bytes"
+        datetime created_at
+    }
+
     refresh_tokens {
         int id PK
         int user_id FK
@@ -415,7 +430,7 @@ erDiagram
 
 ## Indexes
 
-The application uses 10 migration files with indexes targeting query patterns and auth lookups:
+The application uses 11 migration files with indexes targeting query patterns and auth lookups:
 
 | Index Name | Table | Columns | Type | Migration | Purpose |
 |---|---|---|---|---|---|
@@ -433,6 +448,7 @@ The application uses 10 migration files with indexes targeting query patterns an
 | `ix_users_google_id` | users | `(google_id)` | B-tree | 0007 | OAuth Google login lookup |
 | `ix_password_reset_code` | password_resets | `(code)` | B-tree | 0008 | Reset code lookup |
 | `ix_password_reset_user` | password_resets | `(user_id)` | B-tree | 0008 | Find existing codes for user |
+| `ix_attachments_task` | attachments | `(task_id)` | B-tree | 0009 | List attachments for a task |
 
 ## Key Decisions
 
@@ -462,6 +478,8 @@ The application uses 10 migration files with indexes targeting query patterns an
 - **`FormattedContent` component** — Renders rich text HTML with explicit Tailwind utility classes (table borders, list bullets, blockquote styling, code blocks, headings) instead of the `prose` class from `@tailwindcss/typography` (which is not installed).
 - **Markdown note toggle** — The `NoteEditor` has a Rich Text ↔ Markdown toggle button. In Markdown mode, content is edited as raw markdown. In view mode, the component auto-detects HTML vs markdown content and renders accordingly (`dangerouslySetInnerHTML` for HTML, `ReactMarkdown` + `remark-gfm` for markdown).
 - **Comment editor auto-height** — Comment editor uses `onInput` auto-height (scrollHeight) instead of a fixed height, adapting to content. Post-submit clearing uses a `key` prop counter to force component remount, avoiding TipTap's `setContent("")` race condition.
+- **File attachments** — Attachments are uploaded via `multipart/form-data` to `POST /tasks/{id}/attachments`, stored on disk in an `uploads/` Docker volume, and served via `GET /tasks/{id}/attachments/{att_id}` with the correct MIME type. The attachment UI (upload button, file list with download and delete) is placed in the main content area directly below the Details section for visibility. Download uses `fetch` + `blob` + `URL.createObjectURL` to pass auth headers cross-origin. Maximum file size is 10 MB, validated on the backend before write.
+- **Delete from detail page** — A red "Delete task" option is available in a `MoreVertical` (⋮) dropdown menu in the task detail header, preventing accidental clicks. Clicking shows a `confirm()` dialog, and on success the user is redirected to `/tasks`. The existing `useDeleteTask` hook handles the mutation and toast notification.
 
 ### Color & Theming
 - **Light mode**: warm brown/beige palette (`#f5f0eb` backgrounds, `#8b7355` accents).

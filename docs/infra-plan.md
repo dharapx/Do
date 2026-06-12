@@ -96,8 +96,8 @@ httpOnly cookies, refresh token rotation, GitHub/Google OAuth SSO, in-app passwo
 
 ## Phase 4 — Attachments & Delete (done)
 
-- **File attachments** — `POST /tasks/{id}/attachments` (upload, max 10 MB), `GET /tasks/{id}/attachments` (list), `GET /tasks/{id}/attachments/{att_id}` (download), `DELETE /tasks/{id}/attachments/{att_id}` (delete). Files stored in Docker volume `uploads_data`. Migration 0009.
-- **Delete from detail** — Red trash button with confirmation dialog in task detail header; redirects to `/tasks` on success.
+- **File attachments** — `POST /tasks/{id}/attachments` (upload, max 10 MB), `GET /tasks/{id}/attachments` (list), `GET /tasks/{id}/attachments/{att_id}` (download), `DELETE /tasks/{id}/attachments/{att_id}` (delete). Files stored in Docker volume `uploads_data`. Migration 0009. Upload button and file list in main content area below Details section.
+- **Delete from detail** — Red "Delete task" option in `⋮` dropdown menu in task detail header with confirmation; redirects to `/tasks` on success.
 
 ## Phase 5 — Hardening (future)
 

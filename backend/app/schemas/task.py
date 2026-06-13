@@ -133,3 +133,7 @@ class TaskListItem(AppBaseModel):
 class TaskListResponse(AppBaseModel):
     items: list[TaskListItem]
     total: int
+
+
+class TagSuggestionsResponse(AppBaseModel):
+    tags: list[str]

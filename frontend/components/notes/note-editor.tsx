@@ -235,6 +235,8 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
     }
   }, [editing, refTaskMap]);
 
+
+
   const handleSave = () => {
     setSaving(true);
     const content = isMarkdown ? markdownContent : (editor?.getHTML() || "");

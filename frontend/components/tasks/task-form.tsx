@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +37,8 @@ import { Check, ChevronsUpDown, Flag, ListTodo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCreateTask, useUpdateTask, useTasks } from "@/lib/hooks/use-tasks";
 import { tasksApi, type Task, type CreateTaskData, type UpdateTaskData } from "@/lib/api/tasks";
+import { tagsApi } from "@/lib/api/tags";
+import { useQuery } from "@tanstack/react-query";
 import { PRIORITY_OPTIONS } from "@/lib/constants";
 
 interface TaskFormProps {
@@ -67,6 +69,9 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
   const [parentOpen, setParentOpen] = useState(false);
   const [refOpen, setRefOpen] = useState(false);
   const [childOpen, setChildOpen] = useState(false);
+  const tagsInputRef = useRef<HTMLInputElement>(null);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [tagSuggestQuery, setTagSuggestQuery] = useState("");
 
   const listQuery = useMemo(() => ({ limit: 200, sort_by: "created_at" as const, sort_order: "desc" as const }), []);
   const { data: allTasks } = useTasks(listQuery);
@@ -92,6 +97,12 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
     () => (parentId && allTasks?.items ? allTasks.items.find((t) => t.id === parentId) ?? null : null),
     [parentId, allTasks]
   );
+  const { data: tagSuggestions } = useQuery({
+    queryKey: ["tag-suggestions", tagSuggestQuery],
+    queryFn: () => tagsApi.getSuggestions(tagSuggestQuery),
+    enabled: showTagSuggestions && tagSuggestQuery.length > 0,
+  });
+
   const selectedRef = useMemo(
     () => (referenceId && allTasks?.items ? allTasks.items.find((t) => t.id === referenceId) ?? null : null),
     [referenceId, allTasks]
@@ -133,6 +144,36 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setTagsInput(value);
+    const cursorPos = e.target.selectionStart || 0;
+    const textBefore = value.slice(0, cursorPos);
+    const hashMatch = textBefore.match(/#([^#,]*)$/);
+    if (hashMatch) {
+      setTagSuggestQuery(hashMatch[1]);
+      setShowTagSuggestions(true);
+    } else {
+      setShowTagSuggestions(false);
+      setTagSuggestQuery("");
+    }
+  };
+
+  const selectTagSuggestion = (tag: string) => {
+    const cursorPos = tagsInputRef.current?.selectionStart || 0;
+    const textBefore = tagsInput.slice(0, cursorPos);
+    const textAfter = tagsInput.slice(cursorPos);
+    const hashMatch = textBefore.match(/#([^#,]*)$/);
+    if (hashMatch) {
+      const prefix = textBefore.slice(0, hashMatch.index);
+      const newValue = prefix + tag + "," + textAfter;
+      setTagsInput(newValue);
+      setShowTagSuggestions(false);
+      setTagSuggestQuery("");
+      setTimeout(() => tagsInputRef.current?.focus(), 0);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -454,16 +495,32 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
               </Popover>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <Label htmlFor="tags">Tags</Label>
               <Input
                 id="tags"
-                placeholder="Enter tags, comma separated"
+                ref={tagsInputRef}
+                placeholder="Enter tags, comma separated (use # for suggestions)"
                 value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
+                onChange={handleTagsChange}
               />
+              {showTagSuggestions && tagSuggestions?.tags && tagSuggestions.tags.length > 0 && (
+                <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-lg border bg-popover shadow-lg max-h-32 overflow-y-auto">
+                  {tagSuggestions.tags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => selectTagSuggestion(tag)}
+                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors"
+                    >
+                      <span className="text-primary font-mono">#</span>
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
-                Separate tags with commas (e.g. bug, frontend, urgent)
+                Separate tags with commas (e.g. bug, frontend, urgent). Type # to search existing tags.
               </p>
             </div>
           </div>

@@ -99,6 +99,11 @@ httpOnly cookies, refresh token rotation, GitHub/Google OAuth SSO, in-app passwo
 - **File attachments** — `POST /tasks/{id}/attachments` (upload, max 10 MB), `GET /tasks/{id}/attachments` (list), `GET /tasks/{id}/attachments/{att_id}` (download), `DELETE /tasks/{id}/attachments/{att_id}` (delete). Files stored in Docker volume `uploads_data`. Migration 0009. Upload button and file list in main content area below Details section.
 - **Delete from detail** — Red "Delete task" option in `⋮` dropdown menu in task detail header with confirmation; redirects to `/tasks` on success.
 
-## Phase 5 — Hardening (future)
+## Phase 5b — Smart Tag Autocomplete (done)
+
+- **Backend `GET /tags/suggestions?q=...`** — Returns distinct tag names matching the query for the current user (case-insensitive ILIKE on `task_tags` joined with `tasks`).
+- **Frontend `#` autocomplete** — In the task form's tags input, typing `#` followed by characters triggers a dropdown with matching existing tags. Selecting a suggestion replaces `#query` with `tag_name,` in the input field.
+
+## Phase 6 — Hardening (future)
 
 Cloudflare WAF rules, CSP headers, monitoring.

@@ -426,4 +426,17 @@ class CRUDTask:
         return result
 
 
+    def get_tag_suggestions(self, db: SessionLocal, user_id: int, query: str = "", limit: int = 10) -> list[str]:
+        stmt = (
+            select(TaskTag.name)
+            .join(Task, TaskTag.task_id == Task.id)
+            .where(Task.user_id == user_id)
+        )
+        if query:
+            stmt = stmt.where(TaskTag.name.ilike(f"%{query}%"))
+        stmt = stmt.distinct(TaskTag.name).limit(limit)
+        results = db.execute(stmt).scalars().all()
+        return list(results)
+
+
 task_crud = CRUDTask()

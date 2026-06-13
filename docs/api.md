@@ -151,8 +151,6 @@ Revokes all existing refresh tokens after success.
 
 ## Tasks
 
-## Tasks
-
 ### Task Object
 
 ```json
@@ -470,6 +468,19 @@ Deletes the file from disk and removes the database record.
 
 ### Delete Note
 `DELETE /notes/{id}`
+
+## Tags
+
+### Tag Suggestions
+`GET /tags/suggestions?q=front`
+
+Returns a list of distinct tag names matching the query (case-insensitive), scoped to the current user's tasks.
+
+```json
+{
+  "tags": ["frontend", "front-end"]
+}
+```
 
 ## Search
 

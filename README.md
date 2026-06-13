@@ -12,8 +12,9 @@ A modern, production-ready task management application with goal/task hierarchy,
 - **Markdown Notes** — Note editor with toggle between Rich Text and Markdown modes; view mode auto-detects HTML vs markdown and renders with `react-markdown` + `remark-gfm`
 - **Time Tracking** — Start/stop timers, add manual entries with inline edit/delete, max 1440 min per entry validated on both ends, view accumulated time per task, timeline chart on dashboard
 - **Activity History** — Immutable audit trail of all changes (status, priority, tags, description, time, comments, attachments)
-- **File Attachments** — Upload and download files attached to tasks (max 10 MB), with delete support; shown in task detail sidebar
-- **Delete from Detail** — Red delete button with confirmation dialog in task detail header
+- **File Attachments** — Upload and download files attached to tasks (max 10 MB), with delete support; shown in main content area below the Details section
+- **Delete from Detail** — Red delete option in a dropdown menu with confirmation dialog in task detail header
+- **Smart Tag Autocomplete** — Type `#` in the tags input to see autocomplete suggestions from existing tags, scoped to the current user's tasks
 - **Notes** — Rich text note editor with toggleable Markdown mode, auto-detected rendering
 - **Dashboard** — Charts (priority breakdown, status distribution), stats cards (urgent, high priority, progress), time timeline, recent activity, quick actions
 - **Authentication** — httpOnly cookie-based sessions with JWT access tokens (15 min), refresh token rotation (7 days, SHA256 hashed), and `Authorization: Bearer` fallback for cross-origin dev
@@ -91,9 +92,9 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 
 ```
 ├── backend/
-│   ├── alembic/              # Database migrations (10 migration files)
+│   ├── alembic/              # Database migrations (11 migration files)
 │   ├── app/
-│   │   ├── api/v1/           # Route handlers (tasks, auth, comments, notes, time, history, search, attachments)
+│   │   ├── api/v1/           # Route handlers (tasks, auth, comments, notes, time, history, search, attachments, tags)
 │   │   ├── crud/             # Business logic layer (CRUDAuth, CRUDAttachment, ...)
 │   │   ├── models/           # SQLAlchemy models (User, Task, RefreshToken, PasswordReset, ...)
 │   │   ├── schemas/          # Pydantic v2 schemas
@@ -169,6 +170,7 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 | GET | `/api/v1/tasks/{id}/attachments` | List attachments |
 | GET | `/api/v1/tasks/{id}/attachments/{att_id}` | Download attachment |
 | DELETE | `/api/v1/tasks/{id}/attachments/{att_id}` | Delete attachment |
+| GET | `/api/v1/tags/suggestions` | Tag autocomplete suggestions |
 | GET | `/api/v1/tasks/{id}/history` | Get task history |
 | GET | `/api/v1/notes` | List notes |
 | POST | `/api/v1/notes` | Create note |

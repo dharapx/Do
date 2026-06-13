@@ -34,6 +34,7 @@ from app.api.v1.attachments import router as attachments_router
 from app.api.v1.history import router as history_router
 from app.api.v1.search import router as search_router
 from app.api.v1.notes import router as notes_router
+from app.api.v1.tags import router as tags_router
 
 
 @asynccontextmanager
@@ -66,6 +67,7 @@ app.include_router(attachments_router, prefix=settings.API_V1_PREFIX)
 app.include_router(history_router, prefix=settings.API_V1_PREFIX)
 app.include_router(search_router, prefix=settings.API_V1_PREFIX)
 app.include_router(notes_router, prefix=settings.API_V1_PREFIX)
+app.include_router(tags_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")

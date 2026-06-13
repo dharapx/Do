@@ -25,6 +25,7 @@ graph TB
                 TIME["Time Entry Routes<br/>timer · manual · total"]
                 HISTORY["History Routes"]
                 SEARCH["Search Routes"]
+                TAGS["Tags Routes<br/>suggestions"]
             end
 
             subgraph CRUD["Business Logic Layer"]
@@ -33,6 +34,7 @@ graph TB
                 CRUD_COMMENT["CRUDComment"]
                 CRUD_TIME["CRUDTimeEntry"]
                 CRUD_HISTORY["CRUDHistory"]
+                CRUD_TAGS["CRUDTask<br/>get_tag_suggestions"]
                 CRUD_AUTH["CRUDAuth<br/>signup·login·me·authenticate<br/>OAuth lookup·link·create_random<br/>set_password·get_by_*"]
             end
 
@@ -477,8 +479,10 @@ The application uses 11 migration files with indexes targeting query patterns an
 - **Markdown-to-HTML paste** — When pasting plain text containing markdown syntax (e.g., `# heading`, `**bold**`, `- list`), the editor converts it to HTML via the `marked` library. Implemented as a `useEffect`-based DOM paste listener that checks for plain text without HTML format, converts with `marked.parse()`, and inserts via `editor.commands.insertContent()`.
 - **`FormattedContent` component** — Renders rich text HTML with explicit Tailwind utility classes (table borders, list bullets, blockquote styling, code blocks, headings) instead of the `prose` class from `@tailwindcss/typography` (which is not installed).
 - **Markdown note toggle** — The `NoteEditor` has a Rich Text ↔ Markdown toggle button. In Markdown mode, content is edited as raw markdown. In view mode, the component auto-detects HTML vs markdown content and renders accordingly (`dangerouslySetInnerHTML` for HTML, `ReactMarkdown` + `remark-gfm` for markdown).
+
 - **Comment editor auto-height** — Comment editor uses `onInput` auto-height (scrollHeight) instead of a fixed height, adapting to content. Post-submit clearing uses a `key` prop counter to force component remount, avoiding TipTap's `setContent("")` race condition.
 - **File attachments** — Attachments are uploaded via `multipart/form-data` to `POST /tasks/{id}/attachments`, stored on disk in an `uploads/` Docker volume, and served via `GET /tasks/{id}/attachments/{att_id}` with the correct MIME type. The attachment UI (upload button, file list with download and delete) is placed in the main content area directly below the Details section for visibility. Download uses `fetch` + `blob` + `URL.createObjectURL` to pass auth headers cross-origin. Maximum file size is 10 MB, validated on the backend before write.
+- **Smart tag autocomplete (#)** — In the task form, when a user types `#` followed by characters in the tags input, a dropdown appears with matching existing tag names from the database (queried via `GET /tags/suggestions?q=...`). Selecting a suggestion replaces `#query` with `tag_name,` in the input text. The backend query joins `task_tags` with `tasks` to scope results to the current user and returns distinct tag names with a case-insensitive `ILIKE` filter.
 - **Delete from detail page** — A red "Delete task" option is available in a `MoreVertical` (⋮) dropdown menu in the task detail header, preventing accidental clicks. Clicking shows a `confirm()` dialog, and on success the user is redirected to `/tasks`. The existing `useDeleteTask` hook handles the mutation and toast notification.
 
 ### Color & Theming

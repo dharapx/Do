@@ -81,7 +81,7 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.todos-backend.rule=Host(`do.dharapx.work`) && PathPrefix(`/api/v1`, `/docs`, `/redoc`, `/openapi.json`)"
+      - "traefik.http.routers.todos-backend.rule=Host(`do.dharapx.work`) && (PathPrefix(`/api/v1`) || PathPrefix(`/docs`) || PathPrefix(`/redoc`) || PathPrefix(`/openapi.json`))"
       - "traefik.http.routers.todos-backend.priority=100"
       - "traefik.http.routers.todos-backend.entrypoints=web"
       - "traefik.http.services.todos-backend.loadbalancer.server.port=8000"

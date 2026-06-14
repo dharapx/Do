@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: todos-postgres
+    command: >
+      postgres
+      -c max_connections=100
+      -c shared_buffers=256MB
+      -c work_mem=16MB
+      -c effective_cache_size=1GB
+    environment:
+      POSTGRES_USER: todos_user
+      POSTGRES_PASSWORD: todos_pass
+      POSTGRES_DB: todos_app
+    expose:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todos_user -d todos_app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - todos-net
+    restart: unless-stopped
+    
+networks:
+  todos-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:

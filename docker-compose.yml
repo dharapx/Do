@@ -102,12 +102,12 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=/api/v1
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api/v1}
     container_name: todos-frontend
     expose:
       - "3000"
     environment:
-      - NEXT_PUBLIC_API_URL=/api/v1
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api/v1}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.todos-frontend.rule=Host(`do.dharapx.work`)"

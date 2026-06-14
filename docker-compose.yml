@@ -65,6 +65,8 @@ services:
     container_name: todos-backend
     expose:
       - "8000"
+    ports:
+      - "8000:8000"
     environment:
       # Backend connection string fully parameterized
       - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}
@@ -80,6 +82,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.todos-backend.rule=Host(`do.dharapx.work`) && PathPrefix(`/api/v1`, `/docs`, `/redoc`, `/openapi.json`)"
+      - "traefik.http.routers.todos-backend.priority=100"
       - "traefik.http.routers.todos-backend.entrypoints=web"
       - "traefik.http.services.todos-backend.loadbalancer.server.port=8000"
       - "traefik.docker.network=dokploy-network"
@@ -106,11 +109,14 @@ services:
     container_name: todos-frontend
     expose:
       - "3000"
+    ports:
+      - "3001:3000"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api/v1}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.todos-frontend.rule=Host(`do.dharapx.work`)"
+      - "traefik.http.routers.todos-frontend.priority=10"
       - "traefik.http.routers.todos-frontend.entrypoints=web"
       - "traefik.http.services.todos-frontend.loadbalancer.server.port=3000"
       - "traefik.docker.network=dokploy-network"

@@ -121,6 +121,7 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 │   ├── architecture.md       # System architecture, key decisions, diagrams
 │   └── infra-plan.md         # Production deployment plan (Dokploy)
 ├── docker-compose.yml
+├── .env.example
 └── README.md
 ```
 
@@ -194,7 +195,7 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 | `DEBUG` | Enable debug mode (insecure cookies) | `true` |
 | `NEXT_PUBLIC_API_URL` | API base URL for frontend | `/api/v1` (relative, same-origin) |
 
-All sensitive values are passed as environment variables in Dokploy's Environment tab. See `backend/secrets/*.txt.example` for the full list of supported credentials.
+All sensitive values are passed as environment variables in Dokploy's Environment tab. See `.env.example` for the full list of supported variables.
 
 ## Connection Flow
 
@@ -221,7 +222,7 @@ Internet ──> Cloudflare ──> cloudflared ──> Traefik
 
 ## Database
 
-Tables are managed via Alembic migrations (10 migration files). To create a new migration:
+Tables are managed via Alembic migrations (11 migration files). To create a new migration:
 
 ```bash
 cd backend

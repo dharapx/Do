@@ -151,14 +151,16 @@ export default function LoginPage() {
             </Button>
             )}
           </div>
-          <p className="mt-4 text-xs text-muted-foreground text-center">
+        </div>
+        )}
+        <div className="px-6 pb-4">
+          <p className="text-xs text-muted-foreground text-center">
             Don&apos;t have an account?{" "}
             <Link href="/signup" className="text-primary hover:underline">
               Sign up
             </Link>
           </p>
         </div>
-        )}
       </Card>
     </div>
   );

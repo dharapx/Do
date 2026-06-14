@@ -119,7 +119,13 @@ async def oauth_callback(provider: str, request: Request, response: Response, db
     if not token:
         raise HTTPException(status_code=401, detail="OAuth token exchange failed")
 
-    user_info = await client.parse_id_token(request, token) if provider == "google" else token.get("userinfo")
+    if provider == "google":
+        try:
+            user_info = await client.parse_id_token(request, token)
+        except KeyError:
+            user_info = await client.userinfo(token)
+    else:
+        user_info = token.get("userinfo")
     if provider == "github":
         import httpx
         async with httpx.AsyncClient() as client_http:

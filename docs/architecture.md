@@ -187,6 +187,8 @@ graph TB
             NOTES_API["notes.ts"]
             COMMENTS_API["comments.ts"]
             TIME_API["time.ts"]
+            ATTACHMENTS_API["attachments.ts"]
+            TAGS_API["tags.ts"]
             AUTH_API["auth.ts"]
         end
     end
@@ -280,7 +282,7 @@ graph TB
 
     subgraph DB["Database Layer"]
         ENGINE["SQLAlchemy Engine<br/>pool_size=10, overflow=20<br/>pool_recycle=3600<br/>pool_pre_ping=True"]
-        ALEMBIC["Alembic Migrations<br/>10 migration files"]
+        ALEMBIC["Alembic Migrations<br/>11 migration files"]
     end
 
     subgraph REDIS_DIAGRAM["Redis Cache"]

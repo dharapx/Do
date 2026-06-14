@@ -1,12 +1,11 @@
 function getBaseUrl(): string {
-  if (typeof window !== "undefined") {
-    const { protocol, hostname } = window.location;
-    if (process.env.NEXT_PUBLIC_API_URL) {
-      return process.env.NEXT_PUBLIC_API_URL;
-    }
-    return `${protocol}//${hostname}:8000/api/v1`;
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
   }
-  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+  if (typeof window !== "undefined") {
+    return "/api/v1";
+  }
+  return "http://localhost:8000/api/v1";
 }
 
 export class ApiError extends Error {

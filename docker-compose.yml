@@ -101,6 +101,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=/api/v1
     container_name: todos-frontend
     expose:
       - "3000"

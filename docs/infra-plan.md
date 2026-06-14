@@ -1,8 +1,7 @@
-# Infra Plan — Cloudflare Tunnel + Traefik
+# Infra Plan — Dokploy Deployment
 
-## Phase 1 — Cloudflare Tunnel + Traefik Gateway
+## Architecture
 
-### Architecture
 ```
 Internet → Cloudflare Edge (TLS, WAF, rate limit)
                 │  encrypted tunnel (outbound-only)
@@ -10,65 +9,44 @@ Internet → Cloudflare Edge (TLS, WAF, rate limit)
         cloudflared container
                 │  internal HTTP
                 ▼
-            Traefik (routing + LB)
+            Traefik (routing)
                 │
           ┌──────┴──────┐
           ▼              ▼
-     Frontend        Backend
-     :3000           :8000
+     Frontend        Backend API
+     do.dharapx.work  do.dharapx.work/api/v1/*
+      (port 3000)       (port 8000)
 ```
 
-### docker-compose additions
+## Deployment (Dokploy)
 
-**cloudflared:**
-```yaml
-services:
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    container_name: todos-tunnel
-    command: tunnel --config /etc/cloudflared/config.yml run
-    volumes:
-      - ./cloudflared:/etc/cloudflared
-    restart: unless-stopped
-```
+### docker-compose.yml
 
-**cloudflared/config.yml:**
-```yaml
-tunnel: <tunnel-id>
-credentials-file: /etc/cloudflared/<tunnel-id>.json
-ingress:
-  - hostname: do.yourdomain.com
-    service: http://traefik:80
-  - service: http_status:404
-```
+- **Secrets** → Environment variables — All sensitive values (`SECRET_KEY`, OAuth credentials) are passed as `${VARIABLE_NAME}` and set in Dokploy's Environment tab.
+- **Ports** → Expose — Internal services (postgres, pgbouncer, redis, backend, frontend) use `expose:` instead of `ports:`, keeping them locked inside the Docker network.
+- **Traefik labels** — Path-based routing:
+  - Frontend: `Host(do.dharapx.work)` → port 3000
+  - Backend: `Host(do.dharapx.work) && PathPrefix(/api/v1, /docs, /redoc, /openapi.json)` → port 8000
+- **`NEXT_PUBLIC_API_URL`** set to `/api/v1` (relative path) — same-origin, no CORS issues.
 
-**Traefik — simplified (no TLS):**
-```yaml
-services:
-  traefik:
-    image: traefik:v3.3
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-```
+### Dokploy Setup
 
-### Frontend/backend changes
-- Remove `ports:` from both
-- Add Traefik labels for path-based routing
-  - Backend: `PathPrefix(/api/v1)` + `PathPrefix(/docs,/redoc,/openapi.json)`
-  - Frontend: `PathPrefix(/)` catch-all
-- `NEXT_PUBLIC_API_URL` → `/api/v1` (relative)
+1. Create a new service in Dokploy pointing to your GitHub repo
+2. In the **Environment** tab, set:
 
-### Setup steps
-1. `docker pull cloudflare/cloudflared`
-2. `docker run cloudflare/cloudflared tunnel login` (browser auth)
-3. `docker run cloudflare/cloudflared tunnel create todos`
-4. Write `cloudflared/config.yml` + `<tunnel-id>.json`
-5. DNS: `do.yourdomain.com CNAME → <tunnel-id>.cfargotunnel.com`
-6. Start stack
+| Variable | Value |
+|---|---|
+| `SECRET_KEY` | Random 64-char string |
+| `GITHUB_CLIENT_ID` | GitHub OAuth App client ID |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth App secret |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
+| `OAUTH_REDIRECT_BASE` | `https://do.dharapx.work` |
+| `FRONTEND_URL` | `https://do.dharapx.work` |
+| `CORS_ORIGINS` | `https://do.dharapx.work` |
+
+3. Cloudflare DNS: `do.dharapx.work CNAME → <tunnel-id>.cfargotunnel.com`
+4. cloudflared config ingress: `do.dharapx.work → http://traefik:80`
 
 ## Phase 2 — Auth Overhaul (done)
 

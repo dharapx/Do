@@ -88,7 +88,10 @@ Provider values: `github`, `google`. Returns a redirect URL to the provider's co
 ### OAuth Callback (internal)
 `GET /auth/oauth/{provider}/callback`
 
-Handles the OAuth provider's callback, exchanges the authorization code for tokens, creates or links a user account, sets auth cookies, and redirects to `{FRONTEND_URL}/dashboard#access_token=...&refresh_token=...`.
+Handles the OAuth provider's callback, exchanges the authorization code for tokens, creates or links a user account, sets auth cookies, and redirects to `{FRONTEND_URL}/dashboard`.
+
+- **Same-origin (production)**: Cookies are set directly via `Set-Cookie` headers and the redirect is to `{FRONTEND_URL}/dashboard`.
+- **Cross-origin (local dev)**: Tokens are also passed in the URL hash fragment (`#access_token=...&refresh_token=...`) for the frontend to extract and send as `Authorization: Bearer` header.
 
 ### Forgot Password
 `POST /auth/forgot-password`

@@ -187,6 +187,8 @@ graph TB
             NOTES_API["notes.ts"]
             COMMENTS_API["comments.ts"]
             TIME_API["time.ts"]
+            ATTACHMENTS_API["attachments.ts"]
+            TAGS_API["tags.ts"]
             AUTH_API["auth.ts"]
         end
     end
@@ -280,7 +282,7 @@ graph TB
 
     subgraph DB["Database Layer"]
         ENGINE["SQLAlchemy Engine<br/>pool_size=10, overflow=20<br/>pool_recycle=3600<br/>pool_pre_ping=True"]
-        ALEMBIC["Alembic Migrations<br/>10 migration files"]
+        ALEMBIC["Alembic Migrations<br/>11 migration files"]
     end
 
     subgraph REDIS_DIAGRAM["Redis Cache"]
@@ -508,5 +510,5 @@ The application uses 11 migration files with indexes targeting query patterns an
 - **OAuth user password** — Users who signed up via OAuth can set a password via `POST /auth/set-password` (with `current_password: null`). Existing password users must provide their current password to set a new one. Both flows revoke all existing refresh tokens.
 
 ### Secrets Management
-- **Docker Secrets** — Sensitive values (`SECRET_KEY`, `GITHUB_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET`) are mounted as files in `/run/secrets/<name>` and mapped from `backend/secrets/*.txt` in docker-compose. The `config.py` `_read_secret()` function reads from the file path first, falling back to environment variables. In production, swap local files for K8s secrets or HashiCorp Vault.
-- **`.gitignore`** — `backend/secrets/*.txt` is gitignored (with an exception for `.gitkeep`). Example files (`*.txt.example`) are committed as safe templates.
+- **Environment variables** — All sensitive values (`SECRET_KEY`, `GITHUB_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET`) are passed as environment variables via `${VARIABLE_NAME}` in `docker-compose.yml`. In production (Dokploy), these are set in the Environment tab. For local dev, copy `.env.example` to `.env` and fill in values — Pydantic `BaseSettings` reads them automatically.
+- **`.gitignore`** — `.env`, `backend/secrets/*.txt`, and `frontend/.env.local` are all gitignored. Only example/template files (`.env.example`, `*/*.txt.example`) are committed as safe templates.

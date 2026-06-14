@@ -1,15 +1,5 @@
-import os
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator
-
-
-def _read_secret(name: str) -> str | None:
-    path = f"/run/secrets/{name}"
-    if os.path.exists(path):
-        with open(path) as f:
-            return f.read().strip()
-    return None
 
 
 class Settings(BaseSettings):
@@ -32,19 +22,6 @@ class Settings(BaseSettings):
     ENABLE_GOOGLE_OAUTH: bool | None = None
 
     model_config = SettingsConfigDict(env_file=".env")
-
-    def model_post_init(self, __context):
-        secret_overrides = [
-            ("SECRET_KEY", "secret_key"),
-            ("GITHUB_CLIENT_ID", "github_client_id"),
-            ("GITHUB_CLIENT_SECRET", "github_client_secret"),
-            ("GOOGLE_CLIENT_ID", "google_client_id"),
-            ("GOOGLE_CLIENT_SECRET", "google_client_secret"),
-        ]
-        for attr, secret_name in secret_overrides:
-            value = _read_secret(secret_name)
-            if value is not None:
-                setattr(self, attr, value)
 
     @model_validator(mode="after")
     def check_secret_key(self):

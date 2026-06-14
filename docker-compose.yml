@@ -1,16 +1,5 @@
-
-secrets:
-  secret_key:
-    file: ./backend/secrets/secret_key.txt
-  github_client_id:
-    file: ./backend/secrets/github_client_id.txt
-  github_client_secret:
-    file: ./backend/secrets/github_client_secret.txt
-  google_client_id:
-    file: ./backend/secrets/google_client_id.txt
-  google_client_secret:
-    file: ./backend/secrets/google_client_secret.txt
-
+# For local dev, replace `expose:` with `ports:` (e.g. "5432:5432") for the
+# services you need to access from the host directly.
 services:
   postgres:
     image: postgres:15-alpine
@@ -25,8 +14,8 @@ services:
       POSTGRES_USER: todos_user
       POSTGRES_PASSWORD: todos_pass
       POSTGRES_DB: todos_app
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -48,8 +37,8 @@ services:
       DEFAULT_POOL_SIZE: 25
       MAX_CLIENT_CONN: 200
       AUTH_TYPE: scram-sha-256
-    ports:
-      - "6432:5432"
+    expose:
+      - "5432"
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,8 +49,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: todos-redis
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes --save 60 1
@@ -74,22 +63,24 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: todos-backend
+    expose:
+      - "8000"
     environment:
       - DATABASE_URL=postgresql+psycopg://todos_user:todos_pass@pgbouncer:5432/todos_app
       - REDIS_URL=redis://redis:6379/0
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5173,http://192.168.1.100:3001}
-      - OAUTH_REDIRECT_BASE=${OAUTH_REDIRECT_BASE:-http://localhost:8000}
-      # OAuth — enable providers explicitly (requires client ID/secret in secrets)
-      # - ENABLE_GITHUB_OAUTH=true
-      # - ENABLE_GOOGLE_OAUTH=true
-    secrets:
-      - secret_key
-      - github_client_id
-      - github_client_secret
-      - google_client_id
-      - google_client_secret
-    ports:
-      - "8000:8000"
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://do.dharapx.work}
+      - OAUTH_REDIRECT_BASE=${OAUTH_REDIRECT_BASE:-https://do.dharapx.work}
+      - FRONTEND_URL=${FRONTEND_URL:-https://do.dharapx.work}
+      - SECRET_KEY=${SECRET_KEY}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`do.dharapx.work`) && PathPrefix(`/api/v1`, `/docs`, `/redoc`, `/openapi.json`)"
+      - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -108,10 +99,15 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: todos-frontend
+    expose:
+      - "3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - NEXT_PUBLIC_API_URL=/api/v1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`do.dharapx.work`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
     depends_on:
       - backend
     networks:

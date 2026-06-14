@@ -45,23 +45,16 @@ A modern, production-ready task management application with goal/task hierarchy,
 
 ### Quick Start (Docker)
 
+The compose file is configured for **production deployment** (Dokploy) — services use `expose:` instead of `ports:` and are routed through Traefik. For local development, you can either:
+
+- Uncomment/replace `expose:` with `ports:` in `docker-compose.yml` for the services you need
+- Or use the individual dev commands below
+
+**Dokploy deployment:**
 ```bash
-# Start all services
-docker compose up -d
-
-# View logs
-docker compose logs -f
-
-# Stop all services
-docker compose down
+# docker-compose.yml uses ${VARIABLE_NAME} env vars — set them in Dokploy's
+# Environment tab before deploying (SECRET_KEY, OAuth credentials, etc.)
 ```
-
-The application will be available at:
-
-- **Frontend**: http://localhost:3000 (or 3001/3002 if configured)
-- **Backend API**: http://localhost:8000
-- **API Docs** (Swagger): http://localhost:8000/docs
-- **API Docs** (ReDoc): http://localhost:8000/redoc
 
 ### Local Development
 
@@ -100,11 +93,10 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 │   │   ├── schemas/          # Pydantic v2 schemas
 │   │   ├── core/             # Auth utilities (JWT, bcrypt, refresh tokens, OAuth registry)
 │   │   ├── cache.py          # Redis-backed dashboard cache (TTL 30s)
-│   │   ├── config.py         # Application settings (Docker Secrets, OAuth flags)
+│   │   ├── config.py         # Application settings (env vars, OAuth flags)
 │   │   ├── database.py       # Database connection (pool_size=10, overflow=20)
 │   │   └── main.py           # FastAPI app + CORS + SessionMiddleware + ZJSONResponse
-│   ├── secrets/              # Docker Secrets (gitignored *.txt, committed *.txt.example)
-│   │   └── .gitkeep
+│   ├── secrets/              # Local secrets template (gitignored *.txt, committed *.txt.example)
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
@@ -127,7 +119,7 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 ├── docs/
 │   ├── api.md                # API endpoint reference
 │   ├── architecture.md       # System architecture, key decisions, diagrams
-│   └── infra-plan.md         # Production deployment plan (Cloudflare Tunnel + Traefik)
+│   └── infra-plan.md         # Production deployment plan (Dokploy)
 ├── docker-compose.yml
 └── README.md
 ```
@@ -185,41 +177,47 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string (via PgBouncer) | `postgresql+psycopg://todos_user:todos_pass@pgbouncer:5432/todos_app` |
-| `SECRET_KEY` | JWT signing key (use Docker Secret in prod) | `dev-secret-key` |
+| `SECRET_KEY` | JWT signing key (set via env var in Dokploy) | `dev-secret-key` |
 | `REDIS_URL` | Redis connection string | `redis://redis:6379/0` |
-| `CORS_ORIGINS` | Comma-separated allowed origins | `http://localhost:3000,http://localhost:3001,...` |
-| `FRONTEND_URL` | Frontend URL for OAuth redirects | `http://localhost:3001` |
-| `OAUTH_REDIRECT_BASE` | Backend base URL for OAuth callbacks | `http://localhost:8000` |
-| `GITHUB_CLIENT_ID` | GitHub OAuth App client ID | _(Docker Secret)_ |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret | _(Docker Secret)_ |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | _(Docker Secret)_ |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | _(Docker Secret)_ |
+| `CORS_ORIGINS` | Comma-separated allowed origins | `https://do.dharapx.work` |
+| `FRONTEND_URL` | Frontend URL for OAuth redirects | `https://do.dharapx.work` |
+| `OAUTH_REDIRECT_BASE` | Backend base URL for OAuth callbacks | `https://do.dharapx.work` |
+| `GITHUB_CLIENT_ID` | GitHub OAuth App client ID | _(set via env var)_ |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret | _(set via env var)_ |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID | _(set via env var)_ |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | _(set via env var)_ |
 | `ENABLE_GITHUB_OAUTH` | Force enable/disable GitHub OAuth | `true` (auto-detect if unset) |
 | `ENABLE_GOOGLE_OAUTH` | Force enable/disable Google OAuth | `true` (auto-detect if unset) |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | JWT access token lifetime | `15` |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime | `7` |
 | `COOKIE_DOMAIN` | Cookie domain (set for subdomain sharing) | _(none)_ |
 | `DEBUG` | Enable debug mode (insecure cookies) | `true` |
-| `NEXT_PUBLIC_API_URL` | API base URL for frontend | `http://localhost:8000/api/v1` |
+| `NEXT_PUBLIC_API_URL` | API base URL for frontend | `/api/v1` (relative, same-origin) |
 
-Secrets can also be provided via Docker Secrets: mount files at `/run/secrets/<name>` (supported names: `secret_key`, `github_client_id`, `github_client_secret`, `google_client_id`, `google_client_secret`). See `backend/secrets/*.txt.example` for the full list.
+All sensitive values are passed as environment variables in Dokploy's Environment tab. See `backend/secrets/*.txt.example` for the full list of supported credentials.
 
 ## Connection Flow
 
 ```
-Frontend (port 3000) ──HTTP──> Backend FastAPI (port 8000)
-                       ↑ Cookies/Bearer         │
-                     (access_token 15min)        ├── PgBouncer (port 5432, transaction pool: 25)
-                     (refresh_token 7d)          │       │
-                        rotation on 401          │       └── PostgreSQL 15 (max_connections=100)
-                                                 │
-                                                 ├── Redis 7 (port 6379, AOF persistence)
-                                                 │       └── Dashboard stats cache (TTL 30s)
-                                                 │
-                                                 └── Session (OAuth state CSRF)
+Internet ──> Cloudflare ──> cloudflared ──> Traefik
+                                              │
+                                   ┌──────────┴──────────┐
+                                   ▼                     ▼
+                           Frontend :3000          Backend :8000
+                           do.dharapx.work         do.dharapx.work/api/v1/*
+                                   │                     │
+                                   │           ┌─────────┴─────────┐
+                                   │           ▼                   ▼
+                                   │    PgBouncer (:5432)      Redis (:6379)
+                                   │           │
+                                   │           ▼
+                                   │    PostgreSQL 15
+                                   │
+                              httpOnly cookies (same-origin)
+                              access_token 15min · refresh_token 7d
 ```
 
-**Auth flow:** Login/Signup sets httpOnly cookies. On 401, frontend calls `/auth/refresh` to rotate tokens (old refresh token revoked, new pair issued). For OAuth, tokens arrive via URL hash fragment (`#access_token=...&refresh_token=...`) and are sent as `Authorization: Bearer` header.
+**Auth flow:** Login/Signup sets httpOnly cookies via same-origin requests (no cross-origin issues). On 401, frontend calls `/auth/refresh` to rotate tokens (old refresh token revoked, new pair issued). OAuth callbacks redirect back to the same domain.
 
 ## Database
 

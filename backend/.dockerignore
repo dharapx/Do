@@ -25,7 +25,6 @@ build/
 !.github
 *.mdx
 tests/
-alembic/versions/
 Dockerfile
 .dockerignore
 docker-compose*.yml

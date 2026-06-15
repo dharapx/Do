@@ -1,18 +1,23 @@
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e4d27e78f1b0e9 AS builder
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+COPY requirements.txt requirements.lock ./
+RUN pip install --no-cache-dir --user --require-hashes -r requirements.lock
 
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e4d27e78f1b0e9
 
 WORKDIR /app
 
-COPY --from=builder /root/.local /root/.local
-COPY . .
+RUN addgroup --system --gid 1001 appgroup \
+ && adduser --system --uid 1001 --gid 1001 --home /app appuser
 
-ENV PATH=/root/.local/bin:$PATH
+COPY --from=builder /root/.local /home/appuser/.local
+COPY --chown=appuser:appgroup . .
+
+ENV PATH=/home/appuser/.local/bin:$PATH
+
+USER appuser
 
 RUN chmod +x entrypoint.sh
 

@@ -123,7 +123,7 @@ async def oauth_callback(provider: str, request: Request, response: Response, db
         try:
             user_info = await client.parse_id_token(request, token)
         except KeyError:
-            user_info = await client.userinfo(token)
+            user_info = await client.userinfo(token=token)
     else:
         user_info = token.get("userinfo")
     if provider == "github":

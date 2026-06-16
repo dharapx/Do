@@ -1,0 +1,37 @@
+FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e4d27e78f1b0e9 AS security-scanner
+
+WORKDIR /app
+
+# Install security tools
+RUN pip install --no-cache-dir pip-audit trivy
+
+# Copy requirements for scanning
+COPY requirements.txt requirements.lock ./
+
+# Run security scans
+RUN python -m pip_audit -r requirements.txt --format=json || true
+
+# Install trivy for filesystem scan
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install trivy
+RUN wget -qO- https://aquasecurity.github.io/trivy-repo/deb/public.key | apt-key add - \
+    && echo "deb https://aquasecurity.github.io/trivy-repo/deb generic main" > /etc/apt/sources.list.d/trivy.list \
+    && apt-get update && apt-get install -y trivy \
+    && rm -rf /var/lib/apt/lists/*
+
+# Scan filesystem
+RUN trivy fs --severity HIGH,CRITICAL --format json /app || true
+
+# Final stage - minimal
+FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e4d27e78f1b0e9
+
+WORKDIR /app
+
+COPY --from=security-scanner /app /app
+
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
+
+ENTRYPOINT ["python", "scripts/security_scan.py"]

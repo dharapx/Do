@@ -1,9 +1,17 @@
+# Build stage with security scanning
+ARG RUN_SECURITY_SCAN=false
 FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e4d27e78f1b0e9 AS builder
 
 WORKDIR /app
 
 COPY requirements.txt requirements.lock ./
 RUN pip install --no-cache-dir --prefix=/install --require-hashes -r requirements.lock
+
+# Optional security scan at build time
+RUN if [ "$RUN_SECURITY_SCAN" = "true" ]; then \
+    pip install --no-cache-dir pip-audit && \
+    python -m pip_audit -r requirements.txt --format=json || exit 1; \
+    fi
 
 FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e4d27e78f1b0e9
 

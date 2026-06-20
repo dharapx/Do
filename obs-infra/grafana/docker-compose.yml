@@ -11,8 +11,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.obs-grafana.rule=Host(`grafana.dharapx.work`)"
-      - "traefik.http.routers.obs-grafana.entrypoints=websecure"
-      - "traefik.http.routers.obs-grafana.tls=true"
+      - "traefik.http.routers.obs-grafana.entrypoints=web"
       - "traefik.http.services.obs-grafana.loadbalancer.server.port=3000"
       - "traefik.docker.network=dokploy-network"
     volumes:

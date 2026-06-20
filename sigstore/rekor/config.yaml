@@ -1,0 +1,14 @@
+server:
+  addr: ":3000"
+  grpc_addr: ":8080"
+
+rekor:
+  type: "trillian"
+  trillian:
+    url: http://trillian:8090
+    log_id: "1"
+
+trillian:
+  type: "trillian"
+  trillian:
+    url: http://trillian:8090

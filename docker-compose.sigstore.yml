@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # Dex - OpenID Connect Identity Provider
+  dex:
+    image: ghcr.io/dexidp/dex:v2.39.0
+    container_name: sigstore-dex
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    volumes:
+      - ./sigstore/dex:/etc/dex
+    ports:
+      - "5556:5556"  # Dex gRPC
+      - "5557:5557"  # Dex HTTP
+    networks:
+      - sigstore-net
+    restart: unless-stopped
+
+  # Fulcio - Certificate Authority
+  fulcio:
+    image: ghcr.io/sigstore/fulcio:v1.7.0
+    container_name: sigstore-fulcio
+    command: ["fulcio", "serve", "--config=/etc/fulcio/config.yaml"]
+    volumes:
+      - ./sigstore/fulcio:/etc/fulcio
+    ports:
+      - "50051:50051"  # gRPC
+      - "50052:50052"  # HTTP
+    environment:
+      - FULCIO_CONFIG=/etc/fulcio/config.yaml
+    depends_on:
+      - dex
+    networks:
+      - sigstore-net
+    restart: unless-stopped
+
+  # CT Log - Certificate Transparency Log
+  ctlog:
+    image: ghcr.io/sigstore/ctlog:v1.7.0
+    container_name: sigstore-ctlog
+    command: ["ctlog", "serve", "--config=/etc/ctlog/config.yaml"]
+    volumes:
+      - ./sigstore/ctlog:/etc/ctlog
+    ports:
+      - "60051:60051"
+      - "60052:60052"
+    networks:
+      - sigstore-net
+    restart: unless-stopped
+
+  # Rekor - Transparency Log
+  rekor:
+    image: ghcr.io/sigstore/rekor:v1.7.0
+    container_name: sigstore-rekor
+    command: ["rekor-server", "serve", "--config=/etc/rekor/config.yaml"]
+    volumes:
+      - ./sigstore/rekor:/etc/rekor
+    ports:
+      - "3000:3000"   # HTTP
+      - "8080:8080"   # gRPC
+    environment:
+      - REKOR_CONFIG=/etc/rekor/config.yaml
+    networks:
+      - sigstore-net
+    restart: unless-stopped
+
+  # Trillian Log Server (for Rekor)
+  trillian:
+    image: ghcr.io/sigstore/trillian:v1.7.0
+    container_name: sigstore-trillian
+    command: ["trillian_log_server", "--config=/etc/trillian/config.yaml"]
+    volumes:
+      - ./sigstore/trillian:/etc/trillian
+    ports:
+      - "8090:8090"
+      - "8091:8091"
+    networks:
+      - sigstore-net
+    restart: unless-stopped
+
+networks:
+  sigstore-net:
+    driver: bridge

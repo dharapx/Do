@@ -1,0 +1,23 @@
+server:
+  addr: ":50051"
+  http_addr: ":50052"
+
+ca:
+  type: "file"
+  file:
+    cert_path: "/etc/fulcio/ca.pem"
+    key_path: "/etc/fulcio/ca.key"
+
+oidc_issuers:
+  - issuer: http://dex:5556
+    client_id: cosign
+
+ct_log:
+  type: "ctlog"
+  ct_log:
+    url: http://ctlog:60051
+
+rekor:
+  type: "rekor"
+  rekor:
+    url: http://rekor:3000

@@ -1,0 +1,8 @@
+server:
+  addr: ":8090"
+  grpc_addr: ":8091"
+
+storage:
+  type: "memory"
+  memory:
+    max_nodes: 1000000

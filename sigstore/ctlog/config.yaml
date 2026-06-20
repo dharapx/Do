@@ -1,0 +1,13 @@
+server:
+  addr: ":60051"
+  http_addr: ":60052"
+
+log:
+  type: "memory"
+  memory:
+    max_nodes: 1000000
+
+trillian:
+  type: "trillian"
+  trillian:
+    url: http://trillian:8090

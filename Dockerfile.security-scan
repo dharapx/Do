@@ -1,0 +1,32 @@
+FROM alpine:3.19
+
+# Install dependencies
+RUN apk add --no-cache \
+    bash \
+    git \
+    curl \
+    docker-cli \
+    cosign \
+    syft
+
+# Create non-root user
+RUN addgroup -g 1000 -S scanner && \
+    adduser -u 1000 -S scanner -G scanner
+
+# Copy scripts
+COPY scripts/security-scan.sh /scripts/security-scan.sh
+COPY scripts/generate_sbom.py /scripts/generate_sbom.py
+COPY scripts/sign_images.py /scripts/sign_images.py
+
+RUN chmod +x /scripts/security-scan.sh && \
+    chown -R scanner:scanner /scripts
+
+# Create directories
+RUN mkdir -p /sbom-output /cosign-keys && \
+    chown -R scanner:scanner /sbom-output /cosign-keys
+
+USER scanner
+
+WORKDIR /app
+
+ENTRYPOINT ["/scripts/security-scan.sh"]

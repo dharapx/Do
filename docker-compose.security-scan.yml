@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  security-scan:
+    build:
+      context: .
+      dockerfile: Dockerfile.security-scan
+    container_name: security-scan
+    user: root
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./scripts:/scripts
+      - ./sbom-output:/sbom-output
+      - ./cosign-keys:/cosign-keys
+    environment:
+      - FRONTEND_IMAGE=test-project-frontend:latest
+      - BACKEND_IMAGE=test-project-backend:latest
+      - COSIGN_PASSWORD=${COSIGN_PASSWORD}
+    networks:
+      - test-net
+    entrypoint: ["/scripts/security-scan.sh"]
+
+networks:
+  test-net:
+    driver: bridge

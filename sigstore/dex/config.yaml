@@ -1,0 +1,26 @@
+issuer: http://localhost:5556
+storage:
+  type: sqlite3
+  config:
+    file: /etc/dex/dex.db
+web:
+  http: 0.0.0.0:5557
+grpc:
+  addr: 0.0.0.0:5556
+expiry:
+  signing_keys: "6h"
+  id_tokens: "24h"
+oauth2:
+  skip_approval_screen: true
+static_clients:
+  - id: cosign
+    redirect_uris:
+      - 'http://localhost:5557/callback'
+    name: cosign
+    secret: cosign-secret
+enable_password_db: true
+static_passwords:
+  - email: "test@example.com"
+    hash: "$2a$10$2b2b2b2b2b2b2b2b2b2b2u2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+    username: "test"
+    user_id: "test-user"

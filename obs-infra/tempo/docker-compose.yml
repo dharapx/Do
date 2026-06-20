@@ -38,4 +38,3 @@ networks:
 
 volumes:
   tempo-data:
-    external: true

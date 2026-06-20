@@ -36,4 +36,3 @@ networks:
 
 volumes:
   loki-data:
-    external: true

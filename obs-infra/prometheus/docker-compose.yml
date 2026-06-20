@@ -47,4 +47,3 @@ networks:
 
 volumes:
   prometheus-data:
-    external: true

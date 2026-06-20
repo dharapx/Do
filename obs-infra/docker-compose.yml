@@ -65,12 +65,7 @@ networks:
 
 volumes:
   prometheus-data:
-    external: true
   loki-data:
-    external: true
   tempo-data:
-    external: true
   grafana-data:
-    external: true
   trivy-cache:
-    external: true

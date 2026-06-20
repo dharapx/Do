@@ -1,0 +1,41 @@
+# obs-infra/tempo/docker-compose.yml
+# Distributed tracing - single binary mode
+# Resources: 0.5 CPU, 1.5 GB RAM, 75 GB storage
+
+services:
+  tempo:
+    image: grafana/tempo:2.3.0
+    container_name: obs-tempo
+    command:
+      - '-config.file=/etc/tempo/tempo-config.yml'
+    ports:
+      - "3200:3200"   # HTTP
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - ./tempo-config.yml:/etc/tempo/tempo-config.yml:ro
+      - tempo-data:/var/tempo
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1.5G
+        reservations:
+          cpus: '0.25'
+          memory: 768M
+    networks:
+      - obs-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3200/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  obs-net:
+    external: true
+
+volumes:
+  tempo-data:
+    external: true

@@ -77,6 +77,11 @@ services:
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - OTEL_SERVICE_NAME=task-tracker-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.todos-backend.rule=Host(`do.dharapx.work`) && (PathPrefix(`/api/v1`) || PathPrefix(`/docs`) || PathPrefix(`/redoc`) || PathPrefix(`/openapi.json`))"
@@ -94,6 +99,7 @@ services:
     networks:
       - todos-net
       - dokploy-network
+      - obs-net
     restart: unless-stopped
     volumes:
       - uploads_data:/app/uploads
@@ -109,6 +115,12 @@ services:
       - "3000"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api/v1}
+      - OTEL_SERVICE_NAME=task-tracker-frontend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
+      - NEXT_OTEL_VERBOSE=1
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.todos-frontend.rule=Host(`do.dharapx.work`)"
@@ -121,12 +133,15 @@ services:
     networks:
       - todos-net
       - dokploy-network
+      - obs-net
     restart: unless-stopped
 
 networks:
   todos-net:
     driver: bridge
   dokploy-network:
+    external: true
+  obs-net:
     external: true
 
 volumes:

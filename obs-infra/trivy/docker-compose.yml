@@ -1,0 +1,42 @@
+# obs-infra/trivy/docker-compose.yml
+# Security vulnerability scanner - runs as cron job
+# Not a persistent service - runs via cron at 2 AM
+
+services:
+  trivy:
+    image: aquasec/trivy:0.48.0
+    container_name: obs-trivy
+    command: >
+      image
+      --scanners vuln,secret,config
+      --severity HIGH,CRITICAL
+      --format sarif
+      --output /reports/trivy-report-$(date +%Y%m%d).sarif
+      --db-repository ghcr.io/aquasecurity/trivy-db:2
+      --cache-dir /root/.cache/trivy
+      localhost:5000/test-project-frontend:latest
+      localhost:5000/test-project-backend:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - trivy-cache:/root/.cache/trivy
+      - ./reports:/reports
+    environment:
+      - TRIVY_DB_REPOSITORY=ghcr.io/aquasecurity/trivy-db:2
+      - TRIVY_JAVA_DB_REPOSITORY=ghcr.io/aquasecurity/trivy-java-db:2
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - obs-net
+    # Not a persistent service - run via cron
+    profiles: ["security-scan"]
+
+networks:
+  obs-net:
+    external: true
+
+volumes:
+  trivy-cache:
+    external: true

@@ -1,0 +1,45 @@
+# obs-infra/grafana/docker-compose.yml
+# Visualization and alerting
+# Resources: 0.3 CPU, 500 MB RAM, 5 GB storage
+
+services:
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: obs-grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./provisioning:/etc/grafana/provisioning:ro
+      - ./dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://do.dharapx.work/grafana
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 512M
+        reservations:
+          cpus: '0.15'
+          memory: 256M
+    networks:
+      - obs-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  obs-net:
+    external: true
+
+volumes:
+  grafana-data:
+    external: true

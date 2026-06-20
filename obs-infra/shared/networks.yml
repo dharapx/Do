@@ -1,0 +1,8 @@
+# obs-infra/shared/networks.yml
+# Shared networks for the observability platform
+# Usage: docker compose -f shared/networks.yml up -d (one-time setup)
+
+networks:
+  obs-net:
+    name: obs-net
+    driver: bridge

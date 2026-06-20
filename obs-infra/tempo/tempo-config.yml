@@ -1,0 +1,71 @@
+# obs-infra/tempo/tempo-config.yml
+# Single binary mode - 30 day retention, 75 GB limit
+
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 1h
+  max_block_bytes: 1048576
+  lifecycler:
+    ring:
+      replication_factor: 1
+      heartbeat_period: 5s
+
+compactor:
+  compaction:
+    block_retention: 30d
+    compacted_block_retention: 1h
+    retention_enabled: true
+    retention_delete_delay: 2h
+    compaction_window: 1h
+    max_block_bytes: 100_000_000
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    block:
+      bloom_filter_false_positive: 0.05
+    wal:
+      path: /var/tempo/wal
+      encoding: snappy
+
+querier:
+  query_ingesters_within: 3h
+
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: on-prem
+  storage:
+    path: /var/tempo/generator
+    remote_write:
+      - url: http://prometheus:9090/api/v1/write
+        send_exemplars: true
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    block:
+      bloom_filter_false_positive: 0.05
+    wal:
+      path: /var/tempo/wal
+      encoding: snappy
+
+querier:
+  query_ingesters_within: 3h

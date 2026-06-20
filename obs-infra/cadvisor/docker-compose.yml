@@ -1,0 +1,32 @@
+# obs-infra/cadvisor/docker-compose.yml
+# Container resource usage and performance metrics
+# Resources: 0.2 CPU, 200 MB RAM
+
+services:
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: obs-cadvisor
+    command:
+      - '--housekeeping_interval=30s'
+      - '--docker_only=true'
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 200M
+    networks:
+      - obs-net
+    restart: unless-stopped
+    privileged: true
+
+networks:
+  obs-net:
+    external: true

@@ -1,0 +1,31 @@
+# obs-infra/node-exporter/docker-compose.yml
+# Host-level metrics (CPU, memory, disk, network)
+# Resources: 0.1 CPU, 100 MB RAM
+
+services:
+  node-exporter:
+    image: prometheus/node-exporter:v1.7.0
+    container_name: obs-node-exporter
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    volumes:
+      - /:/host:ro,rslave
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 100M
+    networks:
+      - obs-net
+    restart: unless-stopped
+    pid: host
+    privileged: true
+
+networks:
+  obs-net:
+    external: true

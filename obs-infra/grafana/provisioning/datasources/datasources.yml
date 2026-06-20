@@ -1,0 +1,38 @@
+# obs-infra/grafana/provisioning/datasources/datasources.yml
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: "30s"
+      queryTimeout: "60s"
+      httpMethod: POST
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      maxLines: 1000
+      timeout: 60
+
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
+    jsonData:
+      httpMethod: GET
+      tracesToLogs:
+        datasourceUid: Loki
+        tags: [service.name, deployment.environment]
+        spanStartTimeShift: "-1h"
+        spanEndTimeShift: "1h"
+      nodeGraph:
+        enabled: true

@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Dex - OpenID Connect Identity Provider
+  # Dex - OpenID Connect Identity Provider (public image)
   dex:
     image: ghcr.io/dexidp/dex:v2.39.0
     container_name: sigstore-dex
@@ -15,7 +15,7 @@ services:
       - sigstore-net
     restart: unless-stopped
 
-  # Fulcio - Certificate Authority
+  # Fulcio - Certificate Authority (public image)
   fulcio:
     image: ghcr.io/sigstore/fulcio:v1.7.0
     container_name: sigstore-fulcio
@@ -33,7 +33,7 @@ services:
       - sigstore-net
     restart: unless-stopped
 
-  # CT Log - Certificate Transparency Log
+  # CT Log - Certificate Transparency Log (public image)
   ctlog:
     image: ghcr.io/sigstore/ctlog:v1.7.0
     container_name: sigstore-ctlog
@@ -43,36 +43,6 @@ services:
     ports:
       - "60051:60051"
       - "60052:60052"
-    networks:
-      - sigstore-net
-    restart: unless-stopped
-
-  # Rekor - Transparency Log
-  rekor:
-    image: ghcr.io/sigstore/rekor:v1.7.0
-    container_name: sigstore-rekor
-    command: ["rekor-server", "serve", "--config=/etc/rekor/config.yaml"]
-    volumes:
-      - ./sigstore/rekor:/etc/rekor
-    ports:
-      - "3000:3000"   # HTTP
-      - "8080:8080"   # gRPC
-    environment:
-      - REKOR_CONFIG=/etc/rekor/config.yaml
-    networks:
-      - sigstore-net
-    restart: unless-stopped
-
-  # Trillian Log Server (for Rekor)
-  trillian:
-    image: ghcr.io/sigstore/trillian:v1.7.0
-    container_name: sigstore-trillian
-    command: ["trillian_log_server", "--config=/etc/trillian/config.yaml"]
-    volumes:
-      - ./sigstore/trillian:/etc/trillian
-    ports:
-      - "8090:8090"
-      - "8091:8091"
     networks:
       - sigstore-net
     restart: unless-stopped

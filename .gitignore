@@ -19,3 +19,6 @@ backend/secrets/*.txt
 *.tsbuildinfo
 graphify-out/
 .planning/
+
+# sbom
+keys/

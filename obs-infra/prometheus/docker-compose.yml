@@ -30,7 +30,6 @@ services:
           memory: 1G
     networks:
       - obs-net
-      - todos-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
@@ -40,8 +39,6 @@ services:
 
 networks:
   obs-net:
-    external: true
-  todos-net:
     external: true
 
 volumes:

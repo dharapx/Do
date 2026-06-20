@@ -17,3 +17,5 @@ backend/secrets/*.txt
 
 # Build artifacts
 *.tsbuildinfo
+graphify-out/
+.planning/

@@ -1,0 +1,128 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: test-postgres
+    command: >
+      postgres
+      -c max_connections=100
+      -c shared_buffers=256MB
+      -c work_mem=16MB
+      -c effective_cache_size=1GB
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    expose:
+      - "5432"
+    volumes:
+      - test-postgres-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-net
+    restart: unless-stopped
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: test-pgbouncer
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@test-postgres:5432/${POSTGRES_DB}
+      POOL_MODE: transaction
+      DEFAULT_POOL_SIZE: 25
+      MAX_CLIENT_CONN: 200
+      AUTH_TYPE: scram-sha-256
+    expose:
+      - "5432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - test-net
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: test-redis
+    expose:
+      - "6379"
+    volumes:
+      - test-redis-data:/data
+    command: redis-server --appendonly yes --save 60 1
+    networks:
+      - test-net
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: test-backend
+    expose:
+      - "8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@test-pgbouncer:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://test-redis:6379/0
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://test.dharapx.work}
+      - OAUTH_REDIRECT_BASE=${OAUTH_REDIRECT_BASE:-https://test.dharapx.work}
+      - FRONTEND_URL=${FRONTEND_URL:-https://test.dharapx.work}
+      - SECRET_KEY=${SECRET_KEY}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.test-backend.rule=Host(`test.dharapx.work`) && (PathPrefix(`/api/v1`) || PathPrefix(`/docs`) || PathPrefix(`/redoc`) || PathPrefix(`/openapi.json`))"
+      - "traefik.http.routers.test-backend.priority=100"
+      - "traefik.http.routers.test-backend.entrypoints=web"
+      - "traefik.http.services.test-backend.loadbalancer.server.port=8000"
+      - "traefik.docker.network=test-net"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - test-net
+    restart: unless-stopped
+    volumes:
+      - test-uploads-data:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api/v1}
+    container_name: test-frontend
+    expose:
+      - "3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api/v1}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.test-frontend.rule=Host(`test.dharapx.work`)"
+      - "traefik.http.routers.test-frontend.priority=10"
+      - "traefik.http.routers.test-frontend.entrypoints=web"
+      - "traefik.http.services.test-frontend.loadbalancer.server.port=3000"
+      - "traefik.docker.network=test-net"
+    depends_on:
+      - backend
+    networks:
+      - test-net
+    restart: unless-stopped
+
+networks:
+  test-net:
+    driver: bridge
+
+volumes:
+  test-postgres-data:
+  test-redis-data:
+  test-uploads-data:

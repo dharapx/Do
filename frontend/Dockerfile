@@ -7,14 +7,6 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
-RUN npm install \
-    @opentelemetry/api@1.9.0 \
-    @opentelemetry/auto-instrumentations-node@0.45.0 \
-    @opentelemetry/exporter-trace-otlp-proto@0.54.0 \
-    @opentelemetry/exporter-metrics-otlp-proto@0.54.0 \
-    @opentelemetry/sdk-metrics@1.27.0 \
-    @opentelemetry/sdk-node@0.54.0
-
 COPY . .
 RUN npm run build
 

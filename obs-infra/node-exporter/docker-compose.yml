@@ -4,13 +4,14 @@
 
 services:
   node-exporter:
-    image: prometheus/node-exporter:v1.7.0
+    image: prom/node-exporter:v1.7.0
     container_name: obs-node-exporter
+    profiles: ["host-metrics"]
     command:
       - '--path.rootfs=/host'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
-    ports:
-      - "9100:9100"
+    expose:
+      - "9100"
     volumes:
       - /:/host:ro,rslave
       - /proc:/host/proc:ro

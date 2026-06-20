@@ -8,8 +8,8 @@ services:
     container_name: obs-loki
     command:
       - '-config.file=/etc/loki/loki-config.yml'
-    ports:
-      - "3100:3100"
+    expose:
+      - "3100"
     volumes:
       - ./loki-config.yml:/etc/loki/loki-config.yml:ro
       - loki-data:/loki

@@ -33,9 +33,11 @@ App (OTel SDK) --> OTel Collector --> Prometheus (metrics)
 
 ## Access
 
-- Grafana: `https://do.dharapx.work/grafana/`
-  - Path-based routing via Traefik
-  - Sub-path configured via `GF_SERVER_SERVE_FROM_SUB_PATH=true`
+- Grafana: `https://grafana.dharapx.work`
+  - Subdomain-based routing via Cloudflare
+  - Accessible only via Cloudflare tunnel / VPN
+- Prometheus: VPN-only (no public access)
+  - Accessed via internal IP when connected to VPN
   - Default credentials: admin / `${GRAFANA_ADMIN_PASSWORD}`
 
 ## Network Topology

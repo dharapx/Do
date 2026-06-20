@@ -4,10 +4,10 @@
 
 services:
   blackbox-exporter:
-    image: prometheus/blackbox-exporter:v0.25.0
+    image: prom/blackbox-exporter:v0.25.0
     container_name: obs-blackbox
-    ports:
-      - "9115:9115"
+    expose:
+      - "9115"
     volumes:
       - ./blackbox.yml:/config/blackbox.yml:ro
     deploy:

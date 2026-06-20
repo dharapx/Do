@@ -1,4 +1,5 @@
 import json
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -6,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import JSONResponse
+
 
 from app.config import settings
 
@@ -36,6 +38,12 @@ from app.api.v1.search import router as search_router
 from app.api.v1.notes import router as notes_router
 from app.api.v1.tags import router as tags_router
 
+
+
+
+logging.getLogger().setLevel(logging.INFO)
+logging.getLogger("uvicorn.access").propagate = True
+logging.getLogger("uvicorn").propagate = True
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -77,4 +85,5 @@ def root():
 
 @app.get("/api/v1/health")
 def health():
+    logging.getLogger().info("health_check_accessed")
     return {"status": "healthy"}

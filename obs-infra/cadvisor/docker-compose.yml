@@ -6,11 +6,12 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: obs-cadvisor
+    profiles: ["host-metrics"]
     command:
       - '--housekeeping_interval=30s'
       - '--docker_only=true'
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro

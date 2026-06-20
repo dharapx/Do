@@ -1,5 +1,6 @@
-# obs-infra/otel-collector/otel-config.yml
-# Receives from apps, exports to Prometheus/Loki/Tempo
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
 
 receivers:
   otlp:
@@ -8,12 +9,6 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
-  prometheus:
-    config:
-      scrape_configs:
-        - job_name: 'otel-collector'
-          static_configs:
-            - targets: ['localhost:8888']
 
 processors:
   batch:
@@ -42,7 +37,6 @@ processors:
         type: probabilistic
         probabilistic:
           sampling_percentage: 10
-
   resource:
     attributes:
       - key: service.name
@@ -54,43 +48,45 @@ processors:
       - key: service.version
         from_attribute: service.version
         action: upsert
+      - key: loki.resource.labels
+        value: service.name, deployment.environment
+        action: upsert
+  transform:
+    trace_statements:
+      - context: resource
+        statements:
+          - set(attributes["service_name"], attributes["service.name"])
+          - set(attributes["deployment_environment"], attributes["deployment.environment"])
 
 exporters:
   prometheus:
-    endpoint: "0.0.0.0:8888"
+    endpoint: "0.0.0.0:8889"
     namespace: "todo"
     resource_to_telemetry_conversion:
       enabled: true
-
   loki:
     endpoint: "http://loki:3100/loki/api/v1/push"
-    labels:
-      attributes:
-        - service.name
-        - deployment.environment
-        - level
-
-  tempo:
+  otlp/tempo:
     endpoint: "tempo:4317"
     tls:
       insecure: true
-
   logging:
     loglevel: debug
     sampling_initial: 5
     sampling_thereafter: 100
 
 service:
+  extensions: [health_check]
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch, tail_sampling, resource]
-      exporters: [tempo]
+      processors: [memory_limiter, batch, tail_sampling, resource, transform]
+      exporters: [otlp/tempo]
     metrics:
-      receivers: [otlp, prometheus]
+      receivers: [otlp]
       processors: [memory_limiter, batch, resource]
       exporters: [prometheus]
     logs:
       receivers: [otlp]
-      processors: [memory_limiter, batch, resource]
-      exporters: [loki]
+      processors: [memory_limiter, batch, resource, transform]
+      exporters: [loki, logging]

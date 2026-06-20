@@ -34,16 +34,19 @@ services:
     extends:
       file: ./node-exporter/docker-compose.yml
       service: node-exporter
+    profiles: ["host-metrics"]
 
   cadvisor:
     extends:
       file: ./cadvisor/docker-compose.yml
       service: cadvisor
+    profiles: ["host-metrics"]
 
   blackbox-exporter:
     extends:
       file: ./blackbox-exporter/docker-compose.yml
       service: blackbox-exporter
+    profiles: ["host-metrics"]
 
   # Security scanning (run via cron, not persistent)
   trivy:
@@ -58,6 +61,7 @@ networks:
   # Connect to existing app network
   todos-net:
     external: true
+    name: test-project_todos-net
 
 volumes:
   prometheus-data:

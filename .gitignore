@@ -15,5 +15,18 @@ backend/secrets/*.txt
 # Example templates are safe to commit
 !backend/secrets/*.txt.example
 
+# Frontend local env
+frontend/.env.local
+
+# Graphify output
+graphify-out/
+
+# Planning artifacts
+.planning/
+
+# SBOM output + keys
+sbom-output/
+sbom/
+
 # Build artifacts
 *.tsbuildinfo

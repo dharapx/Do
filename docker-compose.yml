@@ -82,6 +82,8 @@ services:
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_PYTHON_LOG_CORRELATION=true
+      - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.todos-backend.rule=Host(`do.dharapx.work`) && (PathPrefix(`/api/v1`) || PathPrefix(`/docs`) || PathPrefix(`/redoc`) || PathPrefix(`/openapi.json`))"
@@ -115,12 +117,6 @@ services:
       - "3000"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api/v1}
-      - OTEL_SERVICE_NAME=task-tracker-frontend
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-      - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_METRICS_EXPORTER=otlp
-      - OTEL_LOGS_EXPORTER=otlp
-      - NEXT_OTEL_VERBOSE=1
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.todos-frontend.rule=Host(`do.dharapx.work`)"
@@ -133,7 +129,6 @@ services:
     networks:
       - todos-net
       - dokploy-network
-      - obs-net
     restart: unless-stopped
 
 networks:

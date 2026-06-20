@@ -1,4 +1,4 @@
-issuer: http://localhost:5556
+issuer: http://dex:5556
 storage:
   type: sqlite3
   config:
@@ -12,15 +12,19 @@ expiry:
   id_tokens: "24h"
 oauth2:
   skip_approval_screen: true
+connectors:
+  - type: password
+    id: local
+    name: Local
+    config:
+      static_passwords:
+        - email: "test@example.com"
+          hash: "$2a$10$2b2b2b2b2b2b2b2b2b2b2u2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+          username: "test"
+          user_id: "test-user"
 static_clients:
   - id: cosign
     redirect_uris:
       - 'http://localhost:5557/callback'
     name: cosign
     secret: cosign-secret
-enable_password_db: true
-static_passwords:
-  - email: "test@example.com"
-    hash: "$2a$10$2b2b2b2b2b2b2b2b2b2b2u2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
-    username: "test"
-    user_id: "test-user"

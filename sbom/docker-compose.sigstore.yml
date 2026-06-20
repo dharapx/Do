@@ -1,52 +1,35 @@
-version: '3.8'
+# Sigstore stack - requires authentication for most components
+# This file is kept for reference but services require ghcr.io authentication
+# 
+# For local development, use local cosign keys (sbom/keys/) instead
+# See sbom/scripts/security-scan.sh for local signing/verification
 
-services:
-  # Dex - OpenID Connect Identity Provider (public image)
-  dex:
-    image: ghcr.io/dexidp/dex:v2.39.0
-    container_name: sigstore-dex
-    command: ["dex", "serve", "/etc/dex/config.yaml"]
-    volumes:
-      - ./sigstore/dex:/etc/dex
-    ports:
-      - "5556:5556"  # Dex gRPC
-      - "5557:5557"  # Dex HTTP
-    networks:
-      - sigstore-net
-    restart: unless-stopped
+# services:
+#   # Dex - OpenID Connect Identity Provider (requires config)
+#   # dex:
+#   #   image: ghcr.io/dexidp/dex:v2.39.0
+#   #   ...
+# 
+#   # Fulcio - Certificate Authority (requires auth on ghcr.io)
+#   # fulcio:
+#   #   image: ghcr.io/sigstore/fulcio:v1.7.0
+#   #   ...
+# 
+#   # CT Log - Certificate Transparency Log (requires auth on ghcr.io)
+#   # ctlog:
+#   #   image: ghcr.io/sigstore/ctlog:v1.7.0
+#   #   ...
+# 
+#   # Rekor - Transparency Log (requires auth on ghcr.io)
+#   # rekor:
+#   #   image: ghcr.io/sigstore/rekor:v1.7.0
+#   #   ...
+# 
+#   # Trillian - Log Server (requires auth on ghcr.io)
+#   # trillian:
+#   #   image: ghcr.io/sigstore/trillian:v1.7.0
+#   #   ...
 
-  # Fulcio - Certificate Authority (public image)
-  fulcio:
-    image: ghcr.io/sigstore/fulcio:v1.7.0
-    container_name: sigstore-fulcio
-    command: ["fulcio", "serve", "--config=/etc/fulcio/config.yaml"]
-    volumes:
-      - ./sigstore/fulcio:/etc/fulcio
-    ports:
-      - "50051:50051"  # gRPC
-      - "50052:50052"  # HTTP
-    environment:
-      - FULCIO_CONFIG=/etc/fulcio/config.yaml
-    depends_on:
-      - dex
-    networks:
-      - sigstore-net
-    restart: unless-stopped
-
-  # CT Log - Certificate Transparency Log (public image)
-  ctlog:
-    image: ghcr.io/sigstore/ctlog:v1.7.0
-    container_name: sigstore-ctlog
-    command: ["ctlog", "serve", "--config=/etc/ctlog/config.yaml"]
-    volumes:
-      - ./sigstore/ctlog:/etc/ctlog
-    ports:
-      - "60051:60051"
-      - "60052:60052"
-    networks:
-      - sigstore-net
-    restart: unless-stopped
-
-networks:
-  sigstore-net:
-    driver: bridge
+# networks:
+#   sigstore-net:
+#     driver: bridge

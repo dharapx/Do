@@ -43,7 +43,6 @@ networks:
     external: true
   todos-net:
     external: true
-    name: test-project_todos-net
 
 volumes:
   prometheus-data:

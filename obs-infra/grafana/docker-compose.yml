@@ -8,6 +8,13 @@ services:
     container_name: obs-grafana
     expose:
       - "3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.obs-grafana.rule=Host(`grafana.dharapx.work`)"
+      - "traefik.http.routers.obs-grafana.entrypoints=websecure"
+      - "traefik.http.routers.obs-grafana.tls=true"
+      - "traefik.http.services.obs-grafana.loadbalancer.server.port=3000"
+      - "traefik.docker.network=dokploy-network"
     volumes:
       - ./provisioning:/etc/grafana/provisioning:ro
       - ./dashboards:/var/lib/grafana/dashboards:ro
@@ -28,6 +35,7 @@ services:
           memory: 256M
     networks:
       - obs-net
+      - dokploy-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
@@ -37,6 +45,8 @@ services:
 
 networks:
   obs-net:
+    external: true
+  dokploy-network:
     external: true
 
 volumes:

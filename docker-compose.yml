@@ -64,7 +64,7 @@ services:
     image: prometheuscommunity/pgbouncer-exporter:v0.8.0
     container_name: todos-pgbouncer-exporter
     environment:
-      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB}?sslmode=disable
+      PGBOUNCER_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/pgbouncer?sslmode=disable
     expose:
       - "9127"
     depends_on:

@@ -39,8 +39,7 @@ scrape_configs:
         labels:
           service: 'cadvisor'
 
-  # Add postgres/pgbouncer/redis scrape jobs here when
-  # corresponding exporter containers are deployed:
+  # DB exporter scrape jobs (add when exporter containers deployed)
   # - job_name: 'postgres'
   #   scrape_interval: 30s
   #   static_configs:

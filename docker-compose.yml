@@ -133,6 +133,7 @@ services:
 
 networks:
   todos-net:
+    name: todos-net
     driver: bridge
   dokploy-network:
     external: true

@@ -149,10 +149,14 @@ graph TB
             end
 
             subgraph UI["UI Primitives (shadcn/ui)"]
-                BUTTON["Button"]  DIALOG["Dialog"]
-                SELECT["Select"]  POPOVER["Popover"]
-                COMMAND["Command"] INPUT["Input"]
-                BADGE["Badge"]    CARD["Card"]
+                BUTTON["Button"]
+                DIALOG["Dialog"]
+                SELECT["Select"]
+                POPOVER["Popover"]
+                COMMAND["Command"]
+                INPUT["Input"]
+                BADGE["Badge"]
+                CARD["Card"]
                 DROPDOWN["DropdownMenu"]
                 TEXTAREA["Textarea"]
                 SEPARATOR["Separator"]

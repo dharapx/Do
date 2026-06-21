@@ -17,23 +17,26 @@ A modern, production-ready task management application with goal/task hierarchy,
 - **Smart Tag Autocomplete** — Type `#` in the tags input to see autocomplete suggestions from existing tags, scoped to the current user's tasks
 - **Notes** — Rich text note editor with toggleable Markdown mode, auto-detected rendering
 - **Dashboard** — Charts (priority breakdown, status distribution), stats cards (urgent, high priority, progress), time timeline, recent activity, quick actions
-- **Authentication** — httpOnly cookie-based sessions with JWT access tokens (15 min), refresh token rotation (7 days, SHA256 hashed), and `Authorization: Bearer` fallback for cross-origin dev
-- **OAuth SSO** — Sign in with GitHub or Google; auto-links by email; configurable toggle via env vars
-- **Password Management** — In-app password reset (no SMTP required), set-password for OAuth users
-- **Dark Mode** — System-aware theming with warm light (brown/beige) and dark (charcoal) palettes, glass morphism cards
+- **Authentication** — httpOnly cookie-based sessions with JWT access tokens (15 min), refresh token rotation (7 days, SHA256 hashed), and `Authorization: Bearer` fallback with URL hash fragment tokens for cross-origin dev (frontend :3001, backend :8000)
+- **OAuth SSO** — Sign in with GitHub or Google; auto-links by email; configurable toggle via env vars; self-hosted callback URL derived from `OAUTH_REDIRECT_BASE`
+- **Password Management** — In-app password reset code shown on screen (no SMTP required), set-password for OAuth users; password policy: ≥8 chars, uppercase, lowercase, digit with visual checklist
+- **Dark Mode** — System-aware theming with warm light (brown/beige) and dark (charcoal) palettes, glass morphism cards (semi-transparent bg, backdrop blur, no shadows)
 - **Responsive** — Works on desktop and mobile devices
+- **Observability** — Backend auto-instrumented with OpenTelemetry (traces, logs, metrics); Prometheus for metrics, Loki for log aggregation with trace correlation, Tempo for distributed tracing, all visualized in Grafana with auto-provisioned dashboards (app metrics, node exporter, cAdvisor, blackbox exporter) and alert rules
 
 ## Tech Stack
 
 **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui + Radix UI + cmdk, React Query (TanStack), Zustand, date-fns, Recharts, Lucide icons, TipTap (ProseMirror), react-markdown, remark-gfm, marked, lowlight
 
-**Backend**: FastAPI, SQLAlchemy 2.0, Alembic, Pydantic v2, JWT + refresh tokens, Authlib OAuth, bcrypt
+**Backend**: FastAPI, SQLAlchemy 2.0, Alembic, Pydantic v2, JWT + refresh tokens, Authlib OAuth, bcrypt, OpenTelemetry auto-instrumentation
 
 **Database**: PostgreSQL 15 (via PgBouncer connection pooler)
 
 **Cache**: Redis 7 Alpine
 
-**Deployment**: Docker, Docker Compose
+**Observability**: OpenTelemetry Collector, Prometheus, Loki, Tempo, Grafana, Node Exporter, cAdvisor, Blackbox Exporter
+
+**Deployment**: Docker, Docker Compose, Dokploy (Traefik path-based routing on single domain), Cloudflare DNS proxy
 
 ## Getting Started
 
@@ -54,6 +57,10 @@ The compose file is configured for **production deployment** (Dokploy) — servi
 ```bash
 # docker-compose.yml uses ${VARIABLE_NAME} env vars — set them in Dokploy's
 # Environment tab before deploying (SECRET_KEY, OAuth credentials, etc.)
+#
+# obs-infra/ is deployed as a separate stack in Dokploy (Prometheus, Loki, Tempo,
+# Grafana, OTel Collector, Node Exporter, cAdvisor, Blackbox Exporter).
+# Grafana is accessible at https://grafana.dharapx.work via Cloudflare proxy.
 ```
 
 ### Local Development
@@ -95,7 +102,8 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 │   │   ├── cache.py          # Redis-backed dashboard cache (TTL 30s)
 │   │   ├── config.py         # Application settings (env vars, OAuth flags)
 │   │   ├── database.py       # Database connection (pool_size=10, overflow=20)
-│   │   └── main.py           # FastAPI app + CORS + SessionMiddleware + ZJSONResponse
+│   │   ├── entrypoint.sh     # OTel-instrumented uvicorn launcher
+│   │   └── main.py           # FastAPI app + CORS + SessionMiddleware + ZJSONResponse + OTel log fix
 │   ├── secrets/              # Local secrets template (gitignored *.txt, committed *.txt.example)
 │   ├── Dockerfile
 │   └── requirements.txt
@@ -120,6 +128,16 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 │   ├── api.md                # API endpoint reference
 │   ├── architecture.md       # System architecture, key decisions, diagrams
 │   └── infra-plan.md         # Production deployment plan (Dokploy)
+├── obs-infra/                # On-prem observability stack
+│   ├── docker-compose.yml    # Top-level orchestration (extends per-service compose files)
+│   ├── .env.example
+│   ├── prometheus/           # Config, rules, compose
+│   ├── grafana/
+│   │   ├── provisioning/     # Datasources, dashboards (auto-provisioned), alerting
+│   │   └── dashboards/       # App Metrics, Node Exporter, cAdvisor, Blackbox Exporter
+│   ├── loki/                 # Config + compose
+│   ├── tempo/                # Config + compose
+│   └── otel-collector/       # OTel config (traces→Tempo, metrics→Prometheus, logs→Loki)
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
@@ -193,32 +211,39 @@ See [`docs/architecture.md`](docs/architecture.md) for full system architecture 
 | `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime | `7` |
 | `COOKIE_DOMAIN` | Cookie domain (set for subdomain sharing) | _(none)_ |
 | `DEBUG` | Enable debug mode (insecure cookies) | `true` |
-| `NEXT_PUBLIC_API_URL` | API base URL for frontend | `/api/v1` (relative, same-origin) |
+| `NEXT_PUBLIC_API_URL` | API base URL for frontend (baked at build time) | `/api/v1` (relative, same-origin) |
+| `OTEL_SERVICE_NAME` | OpenTelemetry service name | `todos-backend` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP gRPC collector endpoint | `http://otel-collector:4317` |
+| `OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED` | Enable OTel log auto-instrumentation | `true` |
 
 All sensitive values are passed as environment variables in Dokploy's Environment tab. See `.env.example` for the full list of supported variables.
 
 ## Connection Flow
 
 ```
-Internet ──> Cloudflare ──> cloudflared ──> Traefik
+Internet ──> Cloudflare (grafana.dharapx.work)
+         ──> do.dharapx.work ──> Dokploy/Traefik (path-based routing)
                                               │
-                                   ┌──────────┴──────────┐
-                                   ▼                     ▼
-                           Frontend :3000          Backend :8000
-                           do.dharapx.work         do.dharapx.work/api/v1/*
-                                   │                     │
-                                   │           ┌─────────┴─────────┐
-                                   │           ▼                   ▼
-                                   │    PgBouncer (:5432)      Redis (:6379)
-                                   │           │
-                                   │           ▼
-                                   │    PostgreSQL 15
-                                   │
-                              httpOnly cookies (same-origin)
-                              access_token 15min · refresh_token 7d
+                                    ┌──────────┴──────────┐
+                                    ▼                     ▼
+                            Frontend :3000          Backend :8000
+                            /*                      /api/v1/*
+                                    │                     │
+                                    │           ┌─────────┴─────────┐
+                                    │           ▼                   ▼
+                                    │    PgBouncer (:5432)      Redis (:6379)
+                                    │           │
+                                    │           ▼
+                                    │    PostgreSQL 15
+                                    │
+                               httpOnly cookies (same-origin)
+                               access_token 15min · refresh_token 7d
+                               Bearer token fallback (hash fragment, cross-origin dev)
 ```
 
-**Auth flow:** Login/Signup sets httpOnly cookies via same-origin requests (no cross-origin issues). On 401, frontend calls `/auth/refresh` to rotate tokens (old refresh token revoked, new pair issued). OAuth callbacks redirect back to the same domain.
+**Auth flow:** Login/Signup sets httpOnly cookies via same-origin requests (no cross-origin issues). Cross-origin dev (frontend :3001, backend :8000) uses `Authorization: Bearer` with tokens passed via URL hash fragments. On 401, frontend calls `/auth/refresh` to rotate tokens (old refresh token revoked, new pair issued). OAuth callbacks use `OAUTH_REDIRECT_BASE` for self-hosted callback derivation.
+
+**Observability:** Backend sends OTel traces, metrics, and logs to `otel-collector:4317` (gRPC). Collector fans out: traces→Tempo, metrics→Prometheus, logs→Loki. Grafana visualizes everything with auto-provisioned dashboards and alert rules. All obs-infra services run on `obs-net` bridge network.
 
 ## Database
 

@@ -1,23 +1,25 @@
-# obs-infra/grafana/provisioning/alerting/alerting.yml
 apiVersion: 1
 
 alerting:
-  # Alerting rules are defined in Prometheus rules files
-  # This file configures the contact points and notification policies
-  # Actual alert rules are in prometheus/rules/alerts.yml
-  # 
-  # To enable alerting, configure contact points in Grafana UI or via this file:
-  #
-  # contactpoints:
-  #   - name: 'slack'
-  #     type: 'slack'
-  #     settings:
-  #       url: ${SLACK_WEBHOOK_URL}
-  #     disableResolveMessage: false
-  #
-  # notification_policies:
-  #   - receiver: 'slack'
-  #     group_by: ['alertname']
-  #     group_wait: 30s
-  #     group_interval: 5m
-  #     repeat_interval: 4h
+  contactpoints:
+    - name: 'default'
+      type: 'webhook'
+      disableResolveMessage: false
+      settings:
+        url: http://localhost:9999/placeholder
+        httpMethod: POST
+      # Replace with your actual webhook URL to enable notifications:
+      # type: 'slack'
+      # settings:
+      #   url: https://hooks.slack.com/services/xxx/yyy/zzz
+      # --- or ---
+      # type: 'discord'
+      # settings:
+      #   url: https://discord.com/api/webhooks/xxx/yyy
+
+  notification_policies:
+    - receiver: 'default'
+      group_by: ['alertname', 'severity']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h

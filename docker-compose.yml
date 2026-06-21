@@ -61,10 +61,10 @@ services:
     restart: unless-stopped
 
   pgbouncer-exporter:
-    image: prometheuscommunity/pgbouncer-exporter:v0.8.0
+    image: bitnami/pgbouncer-exporter:1.1.1
     container_name: todos-pgbouncer-exporter
     environment:
-      PGBOUNCER_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/pgbouncer?sslmode=disable
+      PGBOUNCER_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/pgbouncer
     expose:
       - "9127"
     depends_on:

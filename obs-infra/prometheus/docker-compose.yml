@@ -14,6 +14,8 @@ services:
       - '--storage.tsdb.wal-compression'
       - '--web.enable-lifecycle'
       - '--web.enable-admin-api'
+    ports:
+      - "100.118.150.14:9090:9090"
     expose:
       - "9090"
     volumes:

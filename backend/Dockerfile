@@ -31,7 +31,7 @@ COPY --chown=appuser:appgroup . .
 ENV PATH=/usr/local/bin:$PATH
 
 # Bootstrap OTel instrumentations
-RUN opentelemetry-bootstrap -a install
+RUN PIP_ROOT_USER_ACTION=ignore opentelemetry-bootstrap -a install
 
 USER appuser
 

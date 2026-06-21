@@ -6,7 +6,6 @@ services:
   node-exporter:
     image: prom/node-exporter:v1.7.0
     container_name: obs-node-exporter
-    profiles: ["host-metrics"]
     command:
       - '--path.rootfs=/host'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'

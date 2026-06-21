@@ -27,20 +27,6 @@ services:
       - todos-net
     restart: unless-stopped
 
-  postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.15.0
-    container_name: todos-postgres-exporter
-    environment:
-      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
-    expose:
-      - "9187"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - todos-net
-    restart: unless-stopped
-
   pgbouncer:
     image: edoburu/pgbouncer:latest
     container_name: todos-pgbouncer
@@ -60,20 +46,6 @@ services:
       - todos-net
     restart: unless-stopped
 
-  pgbouncer-exporter:
-    image: prometheuscommunity/pgbouncer-exporter:v0.2.0
-    container_name: todos-pgbouncer-exporter
-    command:
-      - "--pgBouncer.uri=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@pgbouncer:5432/pgbouncer"
-    expose:
-      - "9127"
-    depends_on:
-      pgbouncer:
-        condition: service_started
-    networks:
-      - todos-net
-    restart: unless-stopped
-
   redis:
     image: redis:7-alpine
     container_name: todos-redis
@@ -82,20 +54,6 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes --save 60 1
-    networks:
-      - todos-net
-    restart: unless-stopped
-
-  redis-exporter:
-    image: oliver006/redis_exporter:v1.61.0
-    container_name: todos-redis-exporter
-    environment:
-      REDIS_ADDR: redis://redis:6379
-    expose:
-      - "9121"
-    depends_on:
-      redis:
-        condition: service_started
     networks:
       - todos-net
     restart: unless-stopped

@@ -39,19 +39,19 @@ scrape_configs:
         labels:
           service: 'cadvisor'
 
-  # Exporter scrape jobs
-  - job_name: 'postgres'
-    scrape_interval: 30s
-    static_configs:
-      - targets: ['todos-postgres:9187']
-  - job_name: 'pgbouncer'
-    scrape_interval: 30s
-    static_configs:
-      - targets: ['todos-pgbouncer:9127']
-  - job_name: 'redis'
-    scrape_interval: 30s
-    static_configs:
-      - targets: ['todos-redis:9121']
+  # DB exporter scrape jobs (add when exporter containers deployed)
+  # - job_name: 'postgres'
+  #   scrape_interval: 30s
+  #   static_configs:
+  #     - targets: ['todos-postgres:9187']
+  # - job_name: 'pgbouncer'
+  #   scrape_interval: 30s
+  #   static_configs:
+  #     - targets: ['todos-pgbouncer:9127']
+  # - job_name: 'redis'
+  #   scrape_interval: 30s
+  #   static_configs:
+  #     - targets: ['todos-redis:9121']
 
   - job_name: 'blackbox'
     metrics_path: /probe

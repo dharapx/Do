@@ -55,9 +55,9 @@ services:
 networks:
   obs-net:
     external: true
-  # Connect to existing app network (add when app exporters deployed)
-  # todos-net:
-  #   external: true
+  # Connect to existing app network for DB exporter scraping
+  todos-net:
+    external: true
 
 volumes:
   prometheus-data:

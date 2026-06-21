@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 revision: str = "0010_add_is_markdown_to_notes"
-down_revision: Union[str, None] = "2e2e714bb15c"
+down_revision: Union[str, None] = "0009"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

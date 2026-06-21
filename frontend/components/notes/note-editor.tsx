@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Save, Trash2, Pencil, Eye, FileText, Type, Code2, EyeOff } from "lucide-react";
+import { Save, Trash2, Pencil, Eye, Code2, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,27 +23,10 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { marked } from "marked";
-import TurndownService from "turndown";
 import type { Note } from "@/lib/api/notes";
 
 const lowlight = createLowlight(common);
-
-const turndownService = new TurndownService({
-  headingStyle: "atx",
-  codeBlockStyle: "fenced",
-  bulletListMarker: "-",
-});
-
-turndownService.addRule("taskLink", {
-  filter: (node: any) => node.nodeName === "A" && !!(node as HTMLElement).getAttribute("data-task-id"),
-  replacement: (_content: string, node: any) => {
-    const id = (node as HTMLElement).getAttribute("data-task-id");
-    return `@${id}: ${_content}`;
-  },
-});
 
 type InputMode = "richtext" | "markdown";
 type MarkdownTab = "edit" | "preview";
@@ -88,7 +71,7 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
 
   const extensions = useMemo(() => [
     StarterKit.configure({ codeBlock: false }),
-    Image,
+    Image.configure({ inline: true }),
     Link.configure({ openOnClick: false }),
     Underline,
     Highlight,
@@ -289,20 +272,6 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
     deleteNote.mutate(note.id, { onSuccess: onDelete });
   };
 
-  const switchToRichtext = async () => {
-    const html = await marked.parse(markdownContent, { async: true });
-    editor?.commands.setContent(html);
-    setInputMode("richtext");
-  };
-
-  const switchToMarkdown = () => {
-    const html = editor?.getHTML() || "";
-    const md = turndownService.turndown(html);
-    setMarkdownContent(md);
-    setInputMode("markdown");
-    setMarkdownTab("edit");
-  };
-
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -391,40 +360,27 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
         {editing ? (
           inputMode === "markdown" ? (
             <div className="flex flex-col h-full">
-              {/* Markdown tab bar + mode toggle */}
-              <div className="flex items-center justify-between border-b px-2 py-1 shrink-0">
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant={markdownTab === "edit" ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-7 text-xs px-2"
-                    onClick={() => setMarkdownTab("edit")}
-                  >
-                    <Code2 className="h-3.5 w-3.5 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant={markdownTab === "preview" ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-7 text-xs px-2"
-                    onClick={() => setMarkdownTab("preview")}
-                  >
-                    <EyeOff className="h-3.5 w-3.5 mr-1" />
-                    Preview
-                  </Button>
-                </div>
+              {/* Markdown tab bar */}
+              <div className="flex items-center gap-1 border-b px-2 py-1 shrink-0">
                 <Button
-                  variant="outline"
+                  variant={markdownTab === "edit" ? "secondary" : "ghost"}
                   size="sm"
-                  className="h-7 text-xs"
-                  onClick={switchToRichtext}
-                  title="Switch to Rich Text"
+                  className="h-7 text-xs px-2"
+                  onClick={() => setMarkdownTab("edit")}
                 >
-                  <Type className="h-3.5 w-3.5 mr-1" />
-                  Rich Text
+                  <Code2 className="h-3.5 w-3.5 mr-1" />
+                  Edit
+                </Button>
+                <Button
+                  variant={markdownTab === "preview" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 text-xs px-2"
+                  onClick={() => setMarkdownTab("preview")}
+                >
+                  <EyeOff className="h-3.5 w-3.5 mr-1" />
+                  Preview
                 </Button>
               </div>
-              {/* Markdown content */}
               {markdownTab === "edit" ? (
                 <Textarea
                   value={markdownContent}
@@ -433,29 +389,20 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
                   placeholder="Start writing in Markdown..."
                 />
               ) : (
-                <div className="flex-1 p-4 overflow-y-auto prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {markdownContent || "*Empty note*"}
-                  </ReactMarkdown>
-                </div>
+                <div
+                  className="flex-1 p-4 overflow-y-auto prose prose-sm max-w-none dark:prose-invert"
+                  dangerouslySetInnerHTML={{
+                    __html: markdownContent
+                      ? marked.parse(markdownContent, { async: false }) as string
+                      : "<p><em>Empty note</em></p>"
+                  }}
+                />
               )}
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between border-b">
+              <div className="border-b">
                 <EditorToolbar editor={editor} />
-                <div className="pr-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={switchToMarkdown}
-                    title="Switch to Markdown"
-                  >
-                    <FileText className="h-3.5 w-3.5 mr-1" />
-                    MD
-                  </Button>
-                </div>
               </div>
               <EditorContent editor={editor} className="min-h-full" />
               {showSuggestions && taskSuggestions.length > 0 && (
@@ -482,11 +429,12 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
           <div className="p-4" ref={viewRef}>
             {note.content ? (
               note.is_markdown || !note.content.startsWith("<") ? (
-                <div className="prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {note.content}
-                  </ReactMarkdown>
-                </div>
+                <div
+                  className="prose prose-sm max-w-none dark:prose-invert"
+                  dangerouslySetInnerHTML={{
+                    __html: marked.parse(note.content, { async: false }) as string
+                  }}
+                />
               ) : (
                 <div
                   className="ProseMirror"

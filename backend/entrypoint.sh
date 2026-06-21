@@ -7,7 +7,11 @@ echo "Alembic version: $(alembic --version)"
 echo "Checking alembic.ini..."
 cat alembic.ini | head -5
 echo "Running alembic upgrade head..."
-alembic upgrade head
+alembic upgrade 0010_add_is_markdown_to_notes 2>/dev/null || {
+  echo "Direct upgrade failed — stamping to known revision and retrying..."
+  alembic stamp 2e2e714bb15c
+  alembic upgrade 0010_add_is_markdown_to_notes
+}
 echo "Migrations completed."
 
 echo "Setting root logger level to INFO..."

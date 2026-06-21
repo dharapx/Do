@@ -4,6 +4,7 @@ export interface Note {
   id: number;
   title: string;
   content: string;
+  is_markdown: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -11,11 +12,13 @@ export interface Note {
 export interface CreateNoteData {
   title: string;
   content?: string;
+  is_markdown?: boolean;
 }
 
 export interface UpdateNoteData {
   title?: string;
   content?: string;
+  is_markdown?: boolean;
 }
 
 export const notesApi = {

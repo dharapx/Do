@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Save, Trash2, Pencil, Eye, FileText, Type } from "lucide-react";
+import { Save, Trash2, Pencil, Eye, Code2, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,26 +23,34 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { marked } from "marked";
 import type { Note } from "@/lib/api/notes";
 
 const lowlight = createLowlight(common);
+
+type InputMode = "richtext" | "markdown";
+type MarkdownTab = "edit" | "preview";
 
 interface NoteEditorProps {
   note: Note;
   onDelete: () => void;
 }
 
-/** Parse task IDs from HTML content (both new <a data-task-id> and old @id: patterns) */
-function extractTaskIds(html: string): number[] {
+function extractTaskIds(content: string): number[] {
   const ids = new Set<number>();
   const tagRe = /data-task-id=["'](\d+)["']/g;
   let m;
-  while ((m = tagRe.exec(html)) !== null) ids.add(Number(m[1]));
+  while ((m = tagRe.exec(content)) !== null) ids.add(Number(m[1]));
   const textRe = /@(\d+)/g;
-  while ((m = textRe.exec(html)) !== null) ids.add(Number(m[1]));
+  while ((m = textRe.exec(content)) !== null) ids.add(Number(m[1]));
   return Array.from(ids);
+}
+
+function detectFormat(content: string): InputMode {
+  const trimmed = content.trim();
+  if (!trimmed) return "markdown";
+  if (/^\s*<(\w+)[^>]*>/i.test(trimmed)) return "richtext";
+  return "markdown";
 }
 
 export function NoteEditor({ note, onDelete }: NoteEditorProps) {
@@ -51,7 +59,8 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
   const [title, setTitle] = useState(note.title);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [isMarkdown, setIsMarkdown] = useState(false);
+  const [inputMode, setInputMode] = useState<InputMode>("richtext");
+  const [markdownTab, setMarkdownTab] = useState<MarkdownTab>("edit");
   const [markdownContent, setMarkdownContent] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestQuery, setSuggestQuery] = useState("");
@@ -62,7 +71,7 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
 
   const extensions = useMemo(() => [
     StarterKit.configure({ codeBlock: false }),
-    Image,
+    Image.configure({ inline: true }),
     Link.configure({ openOnClick: false }),
     Underline,
     Highlight,
@@ -154,7 +163,6 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
     [editor]
   );
 
-  /** Enhance DOM in view mode: add tooltips and upgrade old-format @id references */
   const refTaskIds = useMemo(() => extractTaskIds(note.content || ""), [note.content]);
   const refQueryResults = useQueries({
     queries: refTaskIds.map((id) => ({
@@ -178,7 +186,6 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
     if (editing || !viewRef.current) return;
     const root = viewRef.current;
 
-    // Add title tooltips to existing [data-task-id] links
     root.querySelectorAll<HTMLAnchorElement>("a[data-task-id]").forEach((a) => {
       const id = Number(a.dataset.taskId);
       const task = refTaskMap[id];
@@ -189,7 +196,6 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
       }
     });
 
-    // Upgrade old-format @id: Title text nodes to links
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const replacements: { text: string; node: Text; id: number; title: string }[] = [];
     while (walker.nextNode()) {
@@ -206,7 +212,6 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
           replacements.push({ text: fullMatch, node, id, title });
         }
       }
-      // Also handle @id without title: e.g. @10
       const bareMatch = node.textContent?.match(/@(\d+)\b(?!:)/);
       if (bareMatch && !node.textContent?.match(/@(\d+):/)) {
         const id = Number(bareMatch[1]);
@@ -235,28 +240,28 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
     }
   }, [editing, refTaskMap]);
 
-
-
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     setSaving(true);
-    const content = isMarkdown ? markdownContent : (editor?.getHTML() || "");
+    const content = inputMode === "markdown" ? markdownContent : (editor?.getHTML() || "");
+    const is_markdown = inputMode === "markdown";
     updateNote.mutate(
-      { id: note.id, data: { title, content } },
+      { id: note.id, data: { title, content, is_markdown } },
       { onSettled: () => setSaving(false) }
     );
-  };
+  }, [inputMode, markdownContent, editor, title, note.id, updateNote]);
 
   const handleStartEditing = () => {
-    const looksLikeMarkdown = note.content ? !note.content.startsWith("<") : false;
-    setIsMarkdown(looksLikeMarkdown);
-    if (looksLikeMarkdown) {
+    const mode: InputMode = note.is_markdown ? "markdown" : detectFormat(note.content);
+    setInputMode(mode);
+    if (mode === "markdown") {
       setMarkdownContent(note.content);
     }
+    setMarkdownTab("edit");
     setEditing(true);
   };
 
   const handleStopEditing = () => {
-    const currentContent = isMarkdown ? markdownContent : (editor?.getHTML() || "");
+    const currentContent = inputMode === "markdown" ? markdownContent : (editor?.getHTML() || "");
     if (title !== note.title || currentContent !== note.content) {
       handleSave();
     }
@@ -265,16 +270,6 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
 
   const handleDelete = () => {
     deleteNote.mutate(note.id, { onSuccess: onDelete });
-  };
-
-  const toggleFormat = () => {
-    if (isMarkdown) {
-      setIsMarkdown(false);
-      setMarkdownContent("");
-    } else {
-      setIsMarkdown(true);
-      setMarkdownContent(editor?.getText() || "");
-    }
   };
 
   useEffect(() => {
@@ -295,10 +290,10 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
   const hasChanges = useMemo(
     () => {
       if (title !== note.title) return true;
-      if (isMarkdown) return markdownContent !== note.content;
+      if (inputMode === "markdown") return markdownContent !== note.content;
       return editor ? editor.getHTML() !== note.content : false;
     },
-    [title, note.title, editor, note.content, isMarkdown, markdownContent]
+    [title, note.title, editor, note.content, inputMode, markdownContent]
   );
 
   return (
@@ -327,15 +322,6 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
               >
                 <Save className="h-3.5 w-3.5" />
                 {saving ? "Saving..." : "Save"}
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={toggleFormat}
-                title={isMarkdown ? "Switch to Rich Text" : "Switch to Markdown"}
-              >
-                {isMarkdown ? <Type className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
               </Button>
               <Button
                 variant="outline"
@@ -372,16 +358,52 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
       {/* Body */}
       <div className="flex-1 overflow-y-auto relative">
         {editing ? (
-          isMarkdown ? (
-            <Textarea
-              value={markdownContent}
-              onChange={(e) => setMarkdownContent(e.target.value)}
-              className="min-h-full border-none rounded-none p-4 font-mono text-sm resize-none focus-visible:ring-0"
-              placeholder="Start writing in Markdown..."
-            />
+          inputMode === "markdown" ? (
+            <div className="flex flex-col h-full">
+              {/* Markdown tab bar */}
+              <div className="flex items-center gap-1 border-b px-2 py-1 shrink-0">
+                <Button
+                  variant={markdownTab === "edit" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 text-xs px-2"
+                  onClick={() => setMarkdownTab("edit")}
+                >
+                  <Code2 className="h-3.5 w-3.5 mr-1" />
+                  Edit
+                </Button>
+                <Button
+                  variant={markdownTab === "preview" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 text-xs px-2"
+                  onClick={() => setMarkdownTab("preview")}
+                >
+                  <EyeOff className="h-3.5 w-3.5 mr-1" />
+                  Preview
+                </Button>
+              </div>
+              {markdownTab === "edit" ? (
+                <Textarea
+                  value={markdownContent}
+                  onChange={(e) => setMarkdownContent(e.target.value)}
+                  className="flex-1 border-none rounded-none p-4 font-mono text-sm resize-none focus-visible:ring-0 min-h-0"
+                  placeholder="Start writing in Markdown..."
+                />
+              ) : (
+                <div
+                  className="flex-1 p-4 overflow-y-auto prose prose-sm max-w-none dark:prose-invert"
+                  dangerouslySetInnerHTML={{
+                    __html: markdownContent
+                      ? marked.parse(markdownContent, { async: false }) as string
+                      : "<p><em>Empty note</em></p>"
+                  }}
+                />
+              )}
+            </div>
           ) : (
             <>
-              <EditorToolbar editor={editor} />
+              <div className="border-b">
+                <EditorToolbar editor={editor} />
+              </div>
               <EditorContent editor={editor} className="min-h-full" />
               {showSuggestions && taskSuggestions.length > 0 && (
                 <div
@@ -406,17 +428,18 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
         ) : (
           <div className="p-4" ref={viewRef}>
             {note.content ? (
-              note.content.startsWith("<") ? (
+              note.is_markdown || !note.content.startsWith("<") ? (
+                <div
+                  className="prose prose-sm max-w-none dark:prose-invert"
+                  dangerouslySetInnerHTML={{
+                    __html: marked.parse(note.content, { async: false }) as string
+                  }}
+                />
+              ) : (
                 <div
                   className="ProseMirror"
                   dangerouslySetInnerHTML={{ __html: note.content }}
                 />
-              ) : (
-                <div className="prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {note.content}
-                  </ReactMarkdown>
-                </div>
               )
             ) : (
               <p className="text-muted-foreground italic text-sm">Empty note</p>

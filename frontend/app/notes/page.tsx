@@ -29,7 +29,7 @@ export default function NotesPage() {
 
   const handleCreate = () => {
     createNote.mutate(
-      { title: "Untitled Note", content: "" },
+      { title: "Untitled Note", content: "", is_markdown: true },
       {
         onSuccess: (note) => setSelectedId(note.id),
       }

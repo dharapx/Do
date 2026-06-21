@@ -1,6 +1,6 @@
 "use client";
 
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useCallback, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -12,8 +12,8 @@ import { useAuthStore } from "@/lib/store/auth-store";
 import { authApi } from "@/lib/api/auth";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
+const inter = localFont({
+  src: "./fonts/Inter-Latin.woff2",
   variable: "--font-inter",
 });
 

@@ -1,0 +1,24 @@
+# obs-infra/blackbox-exporter/docker-compose.yml
+# Blackbox probing for uptime/health checks
+# Resources: 0.1 CPU, 50 MB RAM
+
+services:
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: obs-blackbox
+    expose:
+      - "9115"
+    volumes:
+      - ./blackbox.yml:/config/blackbox.yml:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 50M
+    networks:
+      - obs-net
+    restart: unless-stopped
+
+networks:
+  obs-net:
+    external: true

@@ -1,0 +1,37 @@
+# obs-infra/otel-collector/docker-compose.yml
+# OpenTelemetry Collector - receives from apps, exports to backends
+# Resources: 0.5 CPU, 1 GB RAM, 5 GB storage
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.106.0
+    container_name: otel-collector
+    command:
+      - '--config=/etc/otelcol/otel-config.yml'
+    expose:
+      - "4317"
+      - "4318"
+      - "8889"
+      - "13133"
+    volumes:
+      - ./otel-config.yml:/etc/otelcol/otel-config.yml:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+    networks:
+      - obs-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:13133"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  obs-net:
+    external: true

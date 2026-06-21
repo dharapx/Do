@@ -1,0 +1,86 @@
+groups:
+  - name: infrastructure
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+
+      - alert: DiskSpaceCritical
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space critical on {{ $labels.instance }}"
+
+      - alert: NodeDown
+        expr: up{job="node-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node exporter is down"
+
+  - name: application
+    rules:
+      - alert: BackendDown
+        expr: up{job="otel-collector"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend is unreachable"
+
+      - alert: HighErrorRate
+        expr: sum(rate(todo_http_server_duration_milliseconds_count{http_status_code=~"5.."}[5m])) / sum(rate(todo_http_server_duration_milliseconds_count[5m])) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 5xx error rate > 5%"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.99, sum(rate(todo_http_server_duration_milliseconds_bucket[5m])) by (le)) > 2000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p99 latency > 2s"
+
+      - alert: DBConnectionPoolHigh
+        expr: sum(todo_db_client_connections_usage{state="used"}) / (sum(todo_db_client_connections_usage{state="used"}) + sum(todo_db_client_connections_usage{state="idle"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DB connection pool usage > 80%"
+
+  - name: uptime
+    rules:
+      - alert: ProbeFailing
+        expr: probe_success{job="blackbox"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Probe failing for {{ $labels.instance }}"
+
+      - alert: SSLCertExpiring
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 14
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSL cert for {{ $labels.instance }} expires in < 14 days"

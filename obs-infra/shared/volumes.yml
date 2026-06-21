@@ -1,0 +1,15 @@
+# obs-infra/shared/volumes.yml
+# Shared volumes for the observability platform
+# Usage: docker compose -f shared/volumes.yml up -d (one-time setup)
+
+volumes:
+  prometheus-data:
+    name: prometheus-data
+  loki-data:
+    name: loki-data
+  tempo-data:
+    name: tempo-data
+  grafana-data:
+    name: grafana-data
+  trivy-cache:
+    name: trivy-cache

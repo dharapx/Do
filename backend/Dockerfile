@@ -5,13 +5,18 @@ FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e
 WORKDIR /app
 
 COPY requirements.txt requirements.lock ./
-RUN pip install --no-cache-dir --prefix=/install --require-hashes -r requirements.lock
+RUN pip install --root-user-action=ignore --no-cache-dir --prefix=/install --require-hashes -r requirements.lock
 
 # Optional security scan at build time
 RUN if [ "$RUN_SECURITY_SCAN" = "true" ]; then \
-    pip install --no-cache-dir pip-audit && \
+    pip install --root-user-action=ignore --no-cache-dir pip-audit && \
     python -m pip_audit -r requirements.txt --format=json || exit 1; \
     fi
+
+# Install OpenTelemetry auto-instrumentation packages
+RUN pip install --root-user-action=ignore --no-cache-dir --prefix=/install \
+    opentelemetry-distro \
+    opentelemetry-exporter-otlp-proto-grpc
 
 FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e4d27e78f1b0e9
 
@@ -24,6 +29,9 @@ COPY --from=builder /install /usr/local
 COPY --chown=appuser:appgroup . .
 
 ENV PATH=/usr/local/bin:$PATH
+
+# Bootstrap OTel instrumentations
+RUN PIP_ROOT_USER_ACTION=ignore opentelemetry-bootstrap -a install
 
 USER appuser
 

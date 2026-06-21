@@ -1,0 +1,92 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 10s
+    send_batch_size: 1000
+    send_batch_max_size: 2000
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 800
+    spike_limit_mib: 200
+  tail_sampling:
+    decision_wait: 30s
+    num_traces: 50000
+    expected_new_traces_per_sec: 100
+    policies:
+      - name: errors
+        type: string_attribute
+        string_attribute:
+          key: "http.status_code"
+          values: ["500", "502", "503", "504"]
+      - name: slow
+        type: latency
+        latency:
+          threshold_ms: 1000
+      - name: random
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+  resource:
+    attributes:
+      - key: service.name
+        from_attribute: service.name
+        action: upsert
+      - key: deployment.environment
+        value: "production"
+        action: upsert
+      - key: service.version
+        from_attribute: service.version
+        action: upsert
+      - key: loki.resource.labels
+        value: service.name, deployment.environment
+        action: upsert
+  transform:
+    trace_statements:
+      - context: resource
+        statements:
+          - set(attributes["service_name"], attributes["service.name"])
+          - set(attributes["deployment_environment"], attributes["deployment.environment"])
+
+exporters:
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: "todo"
+    resource_to_telemetry_conversion:
+      enabled: true
+  loki:
+    endpoint: "http://loki:3100/loki/api/v1/push"
+  otlp/tempo:
+    endpoint: "tempo:4317"
+    tls:
+      insecure: true
+  logging:
+    loglevel: debug
+    sampling_initial: 5
+    sampling_thereafter: 100
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, tail_sampling, resource, transform]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource, transform]
+      exporters: [loki, logging]

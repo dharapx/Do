@@ -1,0 +1,47 @@
+# obs-infra/prometheus/docker-compose.yml
+# Metrics collection and storage
+# Resources: 0.5 CPU, 2 GB RAM, 75 GB storage
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: obs-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=75GB'
+      - '--storage.tsdb.wal-compression'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    ports:
+      - "100.118.150.14:9090:9090"
+    expose:
+      - "9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 1G
+    networks:
+      - obs-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  obs-net:
+    external: true
+
+volumes:
+  prometheus-data:

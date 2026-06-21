@@ -1,0 +1,43 @@
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 1h
+  lifecycler:
+    ring:
+      replication_factor: 1
+
+compactor:
+  compaction:
+    block_retention: 720h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    block:
+      bloom_filter_false_positive: 0.05
+    wal:
+      path: /var/tempo/wal
+
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: on-prem
+  storage:
+    path: /var/tempo/generator
+    remote_write:
+      - url: http://prometheus:9090/api/v1/write
+        send_exemplars: true

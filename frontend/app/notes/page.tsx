@@ -6,7 +6,7 @@ import { Plus, FileText, Search, ArrowLeft, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useNotes, useCreateNote, useDeleteNote } from "@/lib/hooks/use-notes";
+import { useNotes, useNote, useCreateNote, useDeleteNote } from "@/lib/hooks/use-notes";
 import { NoteEditor } from "@/components/notes/note-editor";
 
 export default function NotesPage() {
@@ -16,9 +16,10 @@ export default function NotesPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [dismissBanner, setDismissBanner] = useState(false);
+  const { data: selectedNote } = useNote(selectedId);
 
   const notes = data?.items || [];
-  const selected = notes.find((n) => n.id === selectedId);
+  const selected = selectedNote || notes.find((n) => n.id === selectedId);
 
   const needsMigration = useMemo(
     () => !dismissBanner && notes.some((n) => n.content && n.content.startsWith("<") && !n.content.startsWith("[")),

@@ -30,6 +30,10 @@ echo "Migrations completed."
 echo "Setting root logger level to INFO..."
 python -c "import logging; logging.getLogger().setLevel(logging.INFO)"
 
+# Ensure uploads directory is writable by appuser
+# Docker named volumes are root-owned; this fixes it at runtime
+mkdir -p /app/uploads
+chown -R appuser:appgroup /app/uploads
+
 echo "Starting application with OpenTelemetry instrumentation..."
-exec opentelemetry-instrument \
-    uvicorn app.main:app --host 0.0.0.0 --port 8000
+exec su -s /bin/sh appuser -c "opentelemetry-instrument uvicorn app.main:app --host 0.0.0.0 --port 8000"

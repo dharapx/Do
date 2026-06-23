@@ -5,6 +5,7 @@ import { Save, Trash2, Pencil, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUpdateNote, useDeleteNote } from "@/lib/hooks/use-notes";
+import { toast } from "sonner";
 import type { Note } from "@/lib/api/notes";
 import dynamic from "next/dynamic";
 import type { BlockNoteEditorHandle } from "./blocknote-editor";
@@ -34,14 +35,22 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
   const trimmedTitle = useMemo(() => title.trim() || "Untitled Note", [title]);
 
   const handleSave = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) {
+      toast.error("Editor not ready");
+      return;
+    }
+    const currentContent = editor.getContent();
+    if (!currentContent || currentContent === "[]") {
+      toast.error("No content to save");
+      return;
+    }
     setSaving(true);
-    const currentContent = editorRef.current?.getContent();
-    const content = (currentContent && currentContent !== "[]") ? currentContent : note.content;
     updateNote.mutate(
-      { id: note.id, data: { title: trimmedTitle, content } },
+      { id: note.id, data: { title: trimmedTitle, content: currentContent } },
       { onSettled: () => setSaving(false) }
     );
-  }, [trimmedTitle, note.id, note.content, updateNote]);
+  }, [trimmedTitle, note.id, updateNote]);
 
   const handleStartEditing = useCallback(() => {
     setTitle(note.title);

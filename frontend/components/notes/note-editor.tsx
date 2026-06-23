@@ -1,23 +1,14 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { Save, Trash2, Pencil, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUpdateNote, useDeleteNote } from "@/lib/hooks/use-notes";
 import { toast } from "sonner";
 import type { Note } from "@/lib/api/notes";
-import dynamic from "next/dynamic";
+import { BlockNoteEditor, BlockNoteErrorBoundary } from "./blocknote-editor";
 import type { BlockNoteEditorHandle } from "./blocknote-editor";
-
-const BlockNoteEditor = dynamic(() => import("./blocknote-editor"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center py-12">
-      <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-    </div>
-  ),
-});
 
 interface NoteEditorProps {
   note: Note;
@@ -30,24 +21,56 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
   const [title, setTitle] = useState(note.title);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editorReady, setEditorReady] = useState(false);
-  const handleEditorReady = useCallback(() => setEditorReady(true), []);
+  const [fallbackActive, setFallbackActive] = useState(false);
   const editorRef = useRef<BlockNoteEditorHandle>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setFallbackActive(true), 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const trimmedTitle = useMemo(() => title.trim() || "Untitled Note", [title]);
 
   const handleSave = useCallback(() => {
-    const editor = editorRef.current;
-    const currentContent = editor!.getContent();
-    if (!currentContent || currentContent === "[]") {
-      toast.error("No content to save");
+    const doSave = () => {
+      const editor = editorRef.current;
+      if (!editor) {
+        toast.error("Editor not ready. Please wait and try again.");
+        return;
+      }
+      const currentContent = editor.getContent();
+      if (!currentContent || currentContent === "[]") {
+        toast.error("No content to save");
+        return;
+      }
+      setSaving(true);
+      updateNote.mutate(
+        { id: note.id, data: { title: trimmedTitle, content: currentContent } },
+        { onSettled: () => setSaving(false) }
+      );
+    };
+
+    if (!editorRef.current) {
+      toast.loading("Waiting for editor to load...");
+      let attempts = 0;
+      const retry = () => {
+        if (editorRef.current) {
+          toast.dismiss();
+          doSave();
+          return;
+        }
+        attempts++;
+        if (attempts >= 5) {
+          toast.dismiss();
+          toast.error("Editor failed to load. Please refresh the page.");
+          return;
+        }
+        setTimeout(retry, 200);
+      };
+      retry();
       return;
     }
-    setSaving(true);
-    updateNote.mutate(
-      { id: note.id, data: { title: trimmedTitle, content: currentContent } },
-      { onSettled: () => setSaving(false) }
-    );
+    doSave();
   }, [trimmedTitle, note.id, updateNote]);
 
   const handleStartEditing = useCallback(() => {
@@ -56,7 +79,9 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
   }, [note.title]);
 
   const handleStopEditing = useCallback(() => {
-    handleSave();
+    if (editorRef.current) {
+      handleSave();
+    }
     setEditing(false);
   }, [handleSave]);
 
@@ -85,7 +110,7 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
                 size="sm"
                 className="h-8 gap-1.5 text-xs"
                 onClick={handleSave}
-                disabled={saving || !editorReady}
+                disabled={saving}
               >
                 <Save className="h-3.5 w-3.5" />
                 {saving ? "Saving..." : "Save"}
@@ -123,13 +148,14 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <BlockNoteEditor
-          ref={editorRef}
-          noteId={note.id}
-          content={note.content}
-          editable={editing}
-          onReady={handleEditorReady}
-        />
+        <BlockNoteErrorBoundary noteId={note.id}>
+          <BlockNoteEditor
+            ref={editorRef}
+            noteId={note.id}
+            content={note.content}
+            editable={editing}
+          />
+        </BlockNoteErrorBoundary>
       </div>
     </div>
   );

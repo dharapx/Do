@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from "react";
+import { useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef, Component, type ReactNode, type ErrorInfo } from "react";
 import type { PartialBlock } from "@blocknote/core";
 import {
   useCreateBlockNote,
@@ -66,13 +66,12 @@ interface BlockNoteEditorProps {
   noteId: number;
   content: string;
   editable: boolean;
-  onReady?: () => void;
 }
 
 const emptyDoc: PartialBlock[] = [{ type: "paragraph", content: [] }];
 
 export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditorProps>(
-  function BlockNoteEditor({ noteId, content, editable, onReady }, ref) {
+  function BlockNoteEditor({ noteId, content, editable }, ref) {
     const loadedRef = useRef<string | null>(null);
     const editorInstanceRef = useRef<any>(null);
     const editorLoadedRef = useRef(false);
@@ -102,8 +101,6 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditor
       getContent: () => JSON.stringify(editor?.document || []),
       isLoaded: () => editorLoadedRef.current,
     }), [editor]);
-
-    useEffect(() => { onReady?.(); }, [onReady]);
 
     useEffect(() => {
       if (!editor) return;
@@ -171,6 +168,50 @@ async function getTaskMentionItems(
     }));
   } catch {
     return [];
+  }
+}
+
+interface BlockNoteErrorBoundaryProps {
+  children: ReactNode;
+  noteId: number;
+}
+
+interface BlockNoteErrorBoundaryState {
+  hasError: boolean;
+}
+
+export class BlockNoteErrorBoundary extends Component<
+  BlockNoteErrorBoundaryProps,
+  BlockNoteErrorBoundaryState
+> {
+  constructor(props: BlockNoteErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): BlockNoteErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("BlockNote editor crashed:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+          <p className="text-sm text-muted-foreground">Editor failed to load</p>
+          <button
+            onClick={() => this.setState({ hasError: false })}
+            className="text-xs text-primary hover:underline"
+          >
+            Reload editor
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
   }
 }
 

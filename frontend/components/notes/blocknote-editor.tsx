@@ -66,12 +66,13 @@ interface BlockNoteEditorProps {
   noteId: number;
   content: string;
   editable: boolean;
+  onReady?: () => void;
 }
 
 const emptyDoc: PartialBlock[] = [{ type: "paragraph", content: [] }];
 
 export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditorProps>(
-  function BlockNoteEditor({ noteId, content, editable }, ref) {
+  function BlockNoteEditor({ noteId, content, editable, onReady }, ref) {
     const loadedRef = useRef<string | null>(null);
     const editorInstanceRef = useRef<any>(null);
     const editorLoadedRef = useRef(false);
@@ -101,6 +102,8 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditor
       getContent: () => JSON.stringify(editor?.document || []),
       isLoaded: () => editorLoadedRef.current,
     }), [editor]);
+
+    useEffect(() => { onReady?.(); }, [onReady]);
 
     useEffect(() => {
       if (!editor) return;

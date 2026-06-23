@@ -30,17 +30,15 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
   const [title, setTitle] = useState(note.title);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editorReady, setEditorReady] = useState(false);
+  const handleEditorReady = useCallback(() => setEditorReady(true), []);
   const editorRef = useRef<BlockNoteEditorHandle>(null);
 
   const trimmedTitle = useMemo(() => title.trim() || "Untitled Note", [title]);
 
   const handleSave = useCallback(() => {
     const editor = editorRef.current;
-    if (!editor || !editor.isLoaded()) {
-      toast.error("Editor still loading, please wait");
-      return;
-    }
-    const currentContent = editor.getContent();
+    const currentContent = editor!.getContent();
     if (!currentContent || currentContent === "[]") {
       toast.error("No content to save");
       return;
@@ -87,7 +85,7 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
                 size="sm"
                 className="h-8 gap-1.5 text-xs"
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || !editorReady}
               >
                 <Save className="h-3.5 w-3.5" />
                 {saving ? "Saving..." : "Save"}
@@ -130,6 +128,7 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
           noteId={note.id}
           content={note.content}
           editable={editing}
+          onReady={handleEditorReady}
         />
       </div>
     </div>

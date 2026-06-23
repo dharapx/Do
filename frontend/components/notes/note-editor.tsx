@@ -36,8 +36,8 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
 
   const handleSave = useCallback(() => {
     const editor = editorRef.current;
-    if (!editor) {
-      toast.error("Editor not ready");
+    if (!editor || !editor.isLoaded()) {
+      toast.error("Editor still loading, please wait");
       return;
     }
     const currentContent = editor.getContent();

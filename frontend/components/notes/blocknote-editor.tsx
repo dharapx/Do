@@ -59,6 +59,7 @@ const schema = BlockNoteSchema.create({
 
 export interface BlockNoteEditorHandle {
   getContent: () => string;
+  isLoaded: () => boolean;
 }
 
 interface BlockNoteEditorProps {
@@ -73,6 +74,7 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditor
   function BlockNoteEditor({ noteId, content, editable }, ref) {
     const loadedRef = useRef<string | null>(null);
     const editorInstanceRef = useRef<any>(null);
+    const editorLoadedRef = useRef(false);
     const uploadFile = useCallback(async (file: File): Promise<string> => {
       const attachment = await notesApi.uploadAttachment(noteId, file);
       const base = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
@@ -92,10 +94,16 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditor
     if (editor !== editorInstanceRef.current) {
       editorInstanceRef.current = editor;
       loadedRef.current = null;
+      editorLoadedRef.current = false;
     }
+
+    useEffect(() => {
+      editorLoadedRef.current = true;
+    }, []);
 
     useImperativeHandle(ref, () => ({
       getContent: () => JSON.stringify(editor?.document || []),
+      isLoaded: () => editorLoadedRef.current,
     }), [editor]);
 
     useEffect(() => {

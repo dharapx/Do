@@ -75,7 +75,7 @@ def list_note_attachments(note_id: int, db=Depends(get_db), current_user=Depends
 
 
 @router.get("/{note_id}/attachments/{attachment_id}")
-def download_note_attachment(note_id: int, attachment_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
+def download_note_attachment(note_id: int, attachment_id: int, db=Depends(get_db)):
     attachment = attachment_crud.get_by_id(db, attachment_id)
     if not attachment or attachment.note_id != note_id:
         raise HTTPException(status_code=404, detail="Attachment not found")

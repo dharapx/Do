@@ -94,12 +94,8 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditor
     if (editor !== editorInstanceRef.current) {
       editorInstanceRef.current = editor;
       loadedRef.current = null;
-      editorLoadedRef.current = false;
     }
-
-    useEffect(() => {
-      editorLoadedRef.current = true;
-    }, []);
+    editorLoadedRef.current = true;
 
     useImperativeHandle(ref, () => ({
       getContent: () => JSON.stringify(editor?.document || []),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo, useCallback } from "react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs, defaultStyleSpecs } from "@blocknote/core";
@@ -10,6 +10,8 @@ const schema = BlockNoteSchema.create({
   inlineContentSpecs: defaultInlineContentSpecs,
   styleSpecs: defaultStyleSpecs,
 });
+
+const emptyDoc = [{ type: "paragraph", content: [] as any[] }];
 
 function parseBlocks(content: string | undefined | null) {
   if (!content) return undefined;
@@ -48,11 +50,13 @@ interface BlockNoteCommentProps {
 
 export function BlockNoteComment({ content, onChange, editable }: BlockNoteCommentProps) {
   const loadedRef = useRef(false);
-  const blocks = parseBlocks(content);
-  const editor = useCreateBlockNote({
+  const blocks = useMemo(() => parseBlocks(content), [content]);
+  const editorOptions = useMemo(() => ({
     schema,
-    initialContent: blocks || [{ type: "paragraph", content: [] }],
-  });
+    initialContent: blocks || emptyDoc,
+  }), [blocks]);
+
+  const editor = useCreateBlockNote(editorOptions);
 
   useEffect(() => {
     if (!editor || loadedRef.current) return;
@@ -61,11 +65,15 @@ export function BlockNoteComment({ content, onChange, editable }: BlockNoteComme
     editor.replaceBlocks(editor.document, blocks);
   }, [editor, editable]);
 
+  const handleChange = useCallback(() => {
+    onChange?.(JSON.stringify(editor.document));
+  }, [onChange, editor]);
+
   return (
     <BlockNoteView
       editor={editor}
       editable={editable}
-      onChange={() => onChange?.(JSON.stringify(editor.document))}
+      onChange={handleChange}
     />
   );
 }

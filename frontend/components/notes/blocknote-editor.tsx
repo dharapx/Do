@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from "react";
+import { useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from "react";
 import type { PartialBlock } from "@blocknote/core";
 import {
   useCreateBlockNote,
@@ -78,13 +78,16 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditor
       const base = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
       return `${base}/notes/${noteId}/attachments/${attachment.id}`;
     }, [noteId]);
+    const resolveFileUrl = useCallback(async (url: string): Promise<string> => url, []);
 
-    const editor = useCreateBlockNote({
+    const editorOptions = useMemo(() => ({
       schema,
       initialContent: emptyDoc,
       uploadFile,
-      resolveFileUrl: async (url: string): Promise<string> => url,
-    });
+      resolveFileUrl,
+    }), [uploadFile]);
+
+    const editor = useCreateBlockNote(editorOptions);
 
     if (editor !== editorInstanceRef.current) {
       editorInstanceRef.current = editor;

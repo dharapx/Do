@@ -35,7 +35,8 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
 
   const handleSave = useCallback(() => {
     setSaving(true);
-    const content = editorRef.current?.getContent() || note.content;
+    const currentContent = editorRef.current?.getContent();
+    const content = (currentContent && currentContent !== "[]") ? currentContent : note.content;
     updateNote.mutate(
       { id: note.id, data: { title: trimmedTitle, content } },
       { onSettled: () => setSaving(false) }

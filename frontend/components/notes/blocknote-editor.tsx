@@ -68,7 +68,7 @@ interface BlockNoteEditorProps {
 
 export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditorProps>(
   function BlockNoteEditor({ noteId, content, editable }, ref) {
-    const loadedRef = useRef(false);
+    const loadedRef = useRef<string | null>(null);
 
     const editor = useCreateBlockNote({
       schema,
@@ -86,10 +86,12 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditor
     }), [editor]);
 
     useEffect(() => {
-      if (!editor || loadedRef.current) return;
-      loadedRef.current = true;
+      if (!editor) return;
+      if (editable && loadedRef.current !== null) return;
+      if (!content || loadedRef.current === content) return;
+      loadedRef.current = content;
       loadContent(editor, content);
-    }, [editor, content]);
+    }, [editor, content, editable]);
 
     return (
       <BlockNoteView editor={editor} editable={editable} data-color-scheme="auto">

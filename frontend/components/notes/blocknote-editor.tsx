@@ -75,7 +75,8 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditor
       initialContent: [{ type: "paragraph", content: [] }],
       uploadFile: async (file: File): Promise<string> => {
         const attachment = await notesApi.uploadAttachment(noteId, file);
-        return `/api/v1/notes/${noteId}/attachments/${attachment.id}`;
+        const base = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+        return `${base}/notes/${noteId}/attachments/${attachment.id}`;
       },
       resolveFileUrl: async (url: string): Promise<string> => url,
     });

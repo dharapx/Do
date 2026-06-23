@@ -21,9 +21,9 @@ elif echo "$CURRENT" | grep -q "0004"; then
   echo "At common ancestor — no action needed"
 fi
 
-# Run our new migration
-echo "Running migration 0011..."
-alembic upgrade 0011
+# Run our migrations
+echo "Running migrations 0011 and 0012..."
+alembic upgrade 0012
 
 echo "Migrations completed."
 

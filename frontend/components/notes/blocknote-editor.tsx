@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useImperativeHandle, forwardRef } from "react";
+import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from "react";
+import type { PartialBlock } from "@blocknote/core";
 import {
   useCreateBlockNote,
   SuggestionMenuController,
@@ -66,20 +67,29 @@ interface BlockNoteEditorProps {
   editable: boolean;
 }
 
+const emptyDoc: PartialBlock[] = [{ type: "paragraph", content: [] }];
+
 export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditorProps>(
   function BlockNoteEditor({ noteId, content, editable }, ref) {
     const loadedRef = useRef<string | null>(null);
+    const editorInstanceRef = useRef<any>(null);
+    const uploadFile = useCallback(async (file: File): Promise<string> => {
+      const attachment = await notesApi.uploadAttachment(noteId, file);
+      const base = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+      return `${base}/notes/${noteId}/attachments/${attachment.id}`;
+    }, [noteId]);
 
     const editor = useCreateBlockNote({
       schema,
-      initialContent: [{ type: "paragraph", content: [] }],
-      uploadFile: async (file: File): Promise<string> => {
-        const attachment = await notesApi.uploadAttachment(noteId, file);
-        const base = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
-        return `${base}/notes/${noteId}/attachments/${attachment.id}`;
-      },
+      initialContent: emptyDoc,
+      uploadFile,
       resolveFileUrl: async (url: string): Promise<string> => url,
     });
+
+    if (editor !== editorInstanceRef.current) {
+      editorInstanceRef.current = editor;
+      loadedRef.current = null;
+    }
 
     useImperativeHandle(ref, () => ({
       getContent: () => JSON.stringify(editor?.document || []),

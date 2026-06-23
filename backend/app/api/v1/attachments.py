@@ -19,12 +19,12 @@ def upload_attachment(task_id: int, file: UploadFile = File(...), db=Depends(get
     if len(contents) > MAX_SIZE:
         raise HTTPException(status_code=400, detail="File too large (max 10 MB)")
     file.file.seek(0)
-    return attachment_crud.create(db, task_id, file, current_user.id)
+    return attachment_crud.create(db, file, current_user.id, task_id=task_id)
 
 
 @router.get("", response_model=list[AttachmentResponse])
 def list_attachments(task_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
-    return attachment_crud.get_attachments(db, task_id)
+    return attachment_crud.get_attachments(db, task_id=task_id)
 
 
 @router.get("/{attachment_id}")
@@ -44,6 +44,6 @@ def download_attachment(task_id: int, attachment_id: int, db=Depends(get_db), cu
 
 @router.delete("/{attachment_id}", status_code=204)
 def delete_attachment(task_id: int, attachment_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
-    deleted = attachment_crud.delete(db, task_id, attachment_id, current_user.id)
+    deleted = attachment_crud.delete(db, attachment_id, current_user.id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Attachment not found")

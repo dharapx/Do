@@ -717,7 +717,7 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
                 placeholder="Add a comment..."
               />
               <div className="flex justify-end">
-                <Button type="submit" size="sm" disabled={!commentText || commentText === "<p></p>" || commentText === "<p><br></p>"}>
+                <Button type="submit" size="sm" disabled={!commentText || !commentText.trim() || commentText === "<p></p>"}>
                   <Send className="h-3.5 w-3.5 mr-1.5" />
                   Comment
                 </Button>
@@ -741,7 +741,7 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
                           placeholder="Edit comment..."
                         />
                         <div className="flex gap-2 justify-end">
-                          <Button size="sm" onClick={() => handleUpdateComment(comment.id)} disabled={!editCommentContent || editCommentContent === "<p></p>" || editCommentContent === "<p><br></p>"}>
+                          <Button size="sm" onClick={() => handleUpdateComment(comment.id)} disabled={!editCommentContent || !editCommentContent.trim() || editCommentContent === "<p></p>"}>
                             Save
                           </Button>
                           <Button size="sm" variant="outline" onClick={cancelEditComment}>

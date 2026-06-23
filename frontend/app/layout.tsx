@@ -1,10 +1,13 @@
 "use client";
 
+import "@mantine/core/styles.css";
+import "@blocknote/mantine/style.css";
 import localFont from "next/font/local";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useCallback, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Toaster } from "sonner";
+import { MantineProvider } from "@mantine/core";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -114,11 +117,13 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <AuthGuard>
-              <MainLayout sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} closeSidebar={() => setSidebarOpen(false)}>
-                {children}
-              </MainLayout>
-            </AuthGuard>
+            <MantineProvider>
+              <AuthGuard>
+                <MainLayout sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} closeSidebar={() => setSidebarOpen(false)}>
+                  {children}
+                </MainLayout>
+              </AuthGuard>
+            </MantineProvider>
             <Toaster
               position="top-center"
               richColors

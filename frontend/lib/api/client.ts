@@ -69,9 +69,11 @@ async function request<T>(
   const BASE_URL = getBaseUrl();
   const url = `${BASE_URL}${endpoint}`;
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  const isFormData = options.body instanceof FormData;
+  const headers: Record<string, string> = {};
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
 
   const store = getStore();
   const token = store ? store.getState().accessToken : null;
@@ -138,9 +140,10 @@ export const api = {
   },
 
   post<T>(endpoint: string, data?: unknown) {
+    const isFormData = data instanceof FormData;
     return request<T>(endpoint, {
       method: "POST",
-      body: data ? JSON.stringify(data) : undefined,
+      body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
     });
   },
 

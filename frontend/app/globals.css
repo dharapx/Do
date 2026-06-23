@@ -24,6 +24,20 @@
     --input: 35 20% 78%;
     --ring: 30 45% 45%;
     --radius: 0.75rem;
+
+    --bn-colors-editor-text: hsl(30 12% 18%);
+    --bn-colors-editor-background: hsl(40 35% 96%);
+    --bn-colors-toolbar-text: hsl(30 12% 18%);
+    --bn-colors-toolbar-background: hsl(35 25% 86%);
+    --bn-colors-toolbar-button: hsl(30 12% 18%);
+    --bn-colors-toolbar-button-hover: hsl(35 20% 78%);
+    --bn-colors-toolbar-button-active: hsl(30 45% 45%);
+    --bn-colors-side-menu: hsl(30 8% 55%);
+    --bn-colors-highlighter: hsl(50 90% 60%);
+    --bn-colors-ai-background: hsl(25 55% 52% / 0.1);
+    --bn-colors-background: hsl(38 44% 93%);
+    --bn-font-family: var(--font-inter), system-ui, sans-serif;
+    --bn-border-radius: 0.5rem;
   }
 
   .dark {
@@ -46,6 +60,18 @@
     --border: 30 8% 24%;
     --input: 30 8% 24%;
     --ring: 32 35% 52%;
+
+    --bn-colors-editor-text: hsl(35 10% 82%);
+    --bn-colors-editor-background: hsl(30 12% 14%);
+    --bn-colors-toolbar-text: hsl(35 10% 82%);
+    --bn-colors-toolbar-background: hsl(30 10% 20%);
+    --bn-colors-toolbar-button: hsl(35 10% 82%);
+    --bn-colors-toolbar-button-hover: hsl(30 8% 24%);
+    --bn-colors-toolbar-button-active: hsl(32 35% 52%);
+    --bn-colors-side-menu: hsl(30 8% 55%);
+    --bn-colors-highlighter: hsl(50 60% 40%);
+    --bn-colors-ai-background: hsl(25 50% 45% / 0.15);
+    --bn-colors-background: hsl(30 15% 10%);
   }
 }
 
@@ -83,108 +109,111 @@
   }
 }
 
-/* TipTap / ProseMirror editor styles */
-.ProseMirror {
-  @apply outline-none min-h-[200px] px-4 py-3;
+/* BlockNote theme overrides */
+.bn-container {
+  --bn-colors-editor-text: var(--bn-colors-editor-text);
+  --bn-colors-editor-background: var(--bn-colors-editor-background);
+  --bn-colors-toolbar-text: var(--bn-colors-toolbar-text);
+  --bn-colors-toolbar-background: var(--bn-colors-toolbar-background);
+  --bn-colors-toolbar-button: var(--bn-colors-toolbar-button);
+  --bn-colors-toolbar-button-hover: var(--bn-colors-toolbar-button-hover);
+  --bn-colors-toolbar-button-active: var(--bn-colors-toolbar-button-active);
+  --bn-colors-side-menu: var(--bn-colors-side-menu);
+  --bn-colors-highlighter: var(--bn-colors-highlighter);
+  --bn-colors-ai-background: var(--bn-colors-ai-background);
+  --bn-colors-background: var(--bn-colors-background);
+  --bn-font-family: var(--bn-font-family);
+  --bn-border-radius: var(--bn-border-radius);
 }
 
-.ProseMirror p {
-  @apply my-1;
+/* Fix Mantine tooltip/badge z-index conflicts */
+.mantine-Popover-dropdown,
+.mantine-Tooltip-tooltip {
+  z-index: 1000;
 }
 
-.ProseMirror h1 {
-  @apply text-2xl font-bold my-3;
+/* Read-only content viewer styles (rendered from blocksToFullHTML) */
+.note-content-viewer h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
 }
-
-.ProseMirror h2 {
-  @apply text-xl font-semibold my-2;
+.note-content-viewer h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.5rem;
 }
-
-.ProseMirror h3 {
-  @apply text-lg font-medium my-2;
+.note-content-viewer h3 {
+  font-size: 1.125rem;
+  font-weight: 500;
+  margin: 0.5rem 0 0.25rem;
 }
-
-.ProseMirror ul {
-  @apply list-disc pl-6 my-1;
+.note-content-viewer p {
+  margin: 0.375rem 0;
 }
-
-.ProseMirror ol {
-  @apply list-decimal pl-6 my-1;
+.note-content-viewer ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 0.25rem 0;
 }
-
-.ProseMirror li {
-  @apply my-0.5;
+.note-content-viewer ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin: 0.25rem 0;
 }
-
-.ProseMirror blockquote {
-  @apply border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-2;
+.note-content-viewer li {
+  margin: 0.125rem 0;
 }
-
-.ProseMirror pre {
-  @apply bg-muted rounded-lg p-3 my-2 overflow-x-auto text-sm;
+.note-content-viewer blockquote {
+  border-left: 4px solid hsl(var(--primary) / 0.3);
+  padding-left: 1rem;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+  margin: 0.5rem 0;
 }
-
-.ProseMirror pre code {
-  @apply bg-transparent p-0 text-sm;
+.note-content-viewer pre {
+  background: hsl(var(--muted));
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  font-size: 0.875rem;
 }
-
-.ProseMirror code {
-  @apply bg-muted rounded px-1.5 py-0.5 text-sm font-mono text-primary;
+.note-content-viewer code {
+  background: hsl(var(--muted));
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.875rem;
+  font-family: monospace;
 }
-
-.ProseMirror img {
-  @apply max-w-full h-auto rounded-lg my-2;
+.note-content-viewer pre code {
+  background: transparent;
+  padding: 0;
 }
-
-.ProseMirror a {
-  @apply text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary;
+.note-content-viewer img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
 }
-
-.ProseMirror table {
-  @apply w-full border-collapse my-2;
+.note-content-viewer a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
-
-.ProseMirror th,
-.ProseMirror td {
-  @apply border border-border px-3 py-2 text-sm min-w-[80px];
+.note-content-viewer table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0;
 }
-
-.ProseMirror th {
-  @apply bg-muted font-medium text-left;
+.note-content-viewer th,
+.note-content-viewer td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
 }
-
-.ProseMirror ul[data-type="taskList"] {
-  @apply list-none pl-0;
-}
-
-.ProseMirror ul[data-type="taskList"] li {
-  @apply flex items-start gap-2;
-}
-
-.ProseMirror ul[data-type="taskList"] li > label {
-  @apply flex-shrink-0 mt-1;
-}
-
-.ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
-  @apply accent-primary;
-}
-
-.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div > p {
-  @apply line-through text-muted-foreground;
-}
-
-.ProseMirror p.is-editor-empty:first-child::before {
-  @apply text-muted-foreground/40 content-[attr(data-placeholder)] float-left pointer-events-none h-0;
-}
-
-.ProseMirror s {
-  @apply line-through;
-}
-
-.ProseMirror mark {
-  @apply bg-yellow-200 dark:bg-yellow-800 rounded-sm px-0.5;
-}
-
-.ProseMirror [style*="text-align"] {
-  @apply block;
+.note-content-viewer th {
+  background: hsl(var(--muted));
+  font-weight: 500;
+  text-align: left;
 }

@@ -5,7 +5,8 @@ from app.schemas.base import AppBaseModel
 
 class AttachmentResponse(AppBaseModel):
     id: int
-    task_id: int
+    task_id: int | None = None
+    note_id: int | None = None
     filename: str
     mime_type: str
     size: int

@@ -44,12 +44,15 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isEditing = target.isContentEditable || target.closest("[contenteditable]");
       if (
         e.key === "/" &&
         !e.ctrlKey &&
         !e.metaKey &&
-        !(e.target instanceof HTMLInputElement) &&
-        !(e.target instanceof HTMLTextAreaElement)
+        !(target instanceof HTMLInputElement) &&
+        !(target instanceof HTMLTextAreaElement) &&
+        !isEditing
       ) {
         e.preventDefault();
         setSearchOpen(true);

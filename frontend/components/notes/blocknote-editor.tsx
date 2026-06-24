@@ -1,0 +1,218 @@
+"use client";
+
+import { useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef, Component, type ReactNode, type ErrorInfo } from "react";
+import type { PartialBlock } from "@blocknote/core";
+import {
+  useCreateBlockNote,
+  SuggestionMenuController,
+  DefaultReactSuggestionItem,
+} from "@blocknote/react";
+
+import { BlockNoteView } from "@blocknote/mantine";
+import {
+  BlockNoteSchema,
+  defaultBlockSpecs,
+  defaultInlineContentSpecs,
+  defaultStyleSpecs,
+  createCodeBlockSpec,
+  filterSuggestionItems,
+} from "@blocknote/core";
+import { notesApi } from "@/lib/api/notes";
+import { tasksApi } from "@/lib/api/tasks";
+import { TaskMention, type TaskMentionInlineContent } from "./blocknote-task-mention";
+
+const SUPPORTED_LANGUAGES = {
+  json: { name: "JSON", aliases: ["json"] },
+  yaml: { name: "YAML", aliases: ["yml", "yaml"] },
+  python: { name: "Python", aliases: ["py"] },
+  shell: { name: "Shell", aliases: ["bash", "sh"] },
+  java: { name: "Java", aliases: [] },
+  javascript: { name: "JavaScript", aliases: ["js"] },
+  typescript: { name: "TypeScript", aliases: ["ts"] },
+  css: { name: "CSS", aliases: [] },
+  html: { name: "HTML", aliases: [] },
+  sql: { name: "SQL", aliases: [] },
+};
+
+const schema = BlockNoteSchema.create({
+  blockSpecs: {
+    ...defaultBlockSpecs,
+    codeBlock: createCodeBlockSpec({
+      indentLineWithTab: true,
+      defaultLanguage: "text",
+      supportedLanguages: SUPPORTED_LANGUAGES,
+      createHighlighter: async () => {
+        const { createHighlighter } = await import("shiki");
+        return createHighlighter({
+          themes: ["github-light", "github-dark"],
+          langs: Object.keys(SUPPORTED_LANGUAGES),
+        });
+      },
+    }),
+  },
+  inlineContentSpecs: {
+    ...defaultInlineContentSpecs,
+    taskMention: TaskMention,
+  },
+  styleSpecs: defaultStyleSpecs,
+});
+
+export interface BlockNoteEditorHandle {
+  getContent: () => string;
+  isLoaded: () => boolean;
+}
+
+interface BlockNoteEditorProps {
+  noteId: number;
+  content: string;
+  editable: boolean;
+}
+
+const emptyDoc: PartialBlock[] = [{ type: "paragraph", content: [] }];
+
+export const BlockNoteEditor = forwardRef<BlockNoteEditorHandle, BlockNoteEditorProps>(
+  function BlockNoteEditor({ noteId, content, editable }, ref) {
+    const loadedRef = useRef<string | null>(null);
+    const editorInstanceRef = useRef<any>(null);
+    const editorLoadedRef = useRef(false);
+    const uploadFile = useCallback(async (file: File): Promise<string> => {
+      const attachment = await notesApi.uploadAttachment(noteId, file);
+      const base = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+      return `${base}/notes/${noteId}/attachments/${attachment.id}`;
+    }, [noteId]);
+    const resolveFileUrl = useCallback(async (url: string): Promise<string> => url, []);
+
+    const editorOptions = useMemo(() => ({
+      schema,
+      initialContent: emptyDoc,
+      uploadFile,
+      resolveFileUrl,
+    }), [uploadFile]);
+
+    const editor = useCreateBlockNote(editorOptions);
+
+    if (editor !== editorInstanceRef.current) {
+      editorInstanceRef.current = editor;
+      loadedRef.current = null;
+    }
+    editorLoadedRef.current = true;
+
+    useImperativeHandle(ref, () => ({
+      getContent: () => JSON.stringify(editor?.document || []),
+      isLoaded: () => editorLoadedRef.current,
+    }), [editor]);
+
+    useEffect(() => {
+      if (!editor) return;
+      if (editable && loadedRef.current !== null) return;
+      if (!content || loadedRef.current === content) return;
+      loadedRef.current = content;
+      loadContent(editor, content);
+    }, [editor, content, editable]);
+
+    return (
+      <BlockNoteView editor={editor} editable={editable} data-color-scheme="auto">
+        <SuggestionMenuController
+          triggerCharacter={"@"}
+          getItems={async (query) => {
+            const items = await getTaskMentionItems(editor, query);
+            return filterSuggestionItems(items, query);
+          }}
+        />
+      </BlockNoteView>
+    );
+  }
+);
+
+async function loadContent(editor: any, content: string | undefined | null) {
+  if (!content) return;
+  try {
+    if (content.startsWith("[")) {
+      const blocks = JSON.parse(content);
+      if (Array.isArray(blocks) && blocks.length > 0) {
+        editor.replaceBlocks(editor.document, blocks);
+      }
+    } else if (content.startsWith("<")) {
+      const blocks = await editor.tryParseHTMLToBlocks(content);
+      if (blocks && blocks.length > 0) {
+        editor.replaceBlocks(editor.document, blocks);
+      }
+    }
+  } catch {
+    // fallback to default content
+  }
+}
+
+async function getTaskMentionItems(
+  editor: any,
+  query: string
+): Promise<DefaultReactSuggestionItem[]> {
+  if (!query) return [];
+  try {
+    const result = await tasksApi.fetchTasks({ keyword: query, limit: 5 });
+    return (result.items || []).map((task) => ({
+      title: `#${task.id} ${task.title}`,
+      onItemClick: () => {
+        editor.insertInlineContent([
+          {
+            type: "taskMention",
+            props: {
+              taskId: String(task.id),
+              title: task.title,
+              status: task.status || "PENDING",
+            },
+          } as TaskMentionInlineContent,
+          " ",
+        ]);
+      },
+    }));
+  } catch {
+    return [];
+  }
+}
+
+interface BlockNoteErrorBoundaryProps {
+  children: ReactNode;
+  noteId: number;
+}
+
+interface BlockNoteErrorBoundaryState {
+  hasError: boolean;
+}
+
+export class BlockNoteErrorBoundary extends Component<
+  BlockNoteErrorBoundaryProps,
+  BlockNoteErrorBoundaryState
+> {
+  constructor(props: BlockNoteErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): BlockNoteErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("BlockNote editor crashed:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+          <p className="text-sm text-muted-foreground">Editor failed to load</p>
+          <button
+            onClick={() => this.setState({ hasError: false })}
+            className="text-xs text-primary hover:underline"
+          >
+            Reload editor
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default BlockNoteEditor;

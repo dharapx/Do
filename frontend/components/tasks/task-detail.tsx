@@ -67,6 +67,13 @@ import { type Comment } from "@/lib/api/comments";
 import { type Attachment } from "@/lib/api/attachments";
 import { attachmentsApi } from "@/lib/api/attachments";
 import { RichTextEditor, FormattedContent, isHtml } from "@/components/ui/rich-text-editor";
+import { isCommentEmpty } from "@/components/comments/blocknote-comment";
+import dynamic from "next/dynamic";
+
+const BlockNoteComment = dynamic(
+  () => import("@/components/comments/blocknote-comment").then((m) => m.BlockNoteComment),
+  { ssr: false, loading: () => <div className="min-h-[80px]" /> }
+);
 
 interface TaskDetailProps {
   taskId: number;
@@ -191,7 +198,7 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
 
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentText.trim() || commentText === "<p></p>" || commentText === "<p><br></p>") return;
+    if (isCommentEmpty(commentText)) return;
     createComment.mutate(
       { taskId, data: { content: commentText } },
       {
@@ -263,7 +270,7 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
   };
 
   const handleUpdateComment = (commentId: number) => {
-    if (!editCommentContent || editCommentContent === "<p></p>" || editCommentContent === "<p><br></p>") return;
+    if (isCommentEmpty(editCommentContent)) return;
     updateComment.mutate(
       { taskId, commentId, data: { content: editCommentContent } },
       { onSuccess: () => cancelEditComment() }
@@ -710,14 +717,14 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
             </div>
 
             <form onSubmit={handleAddComment} className="space-y-2">
-              <RichTextEditor
+              <BlockNoteComment
                 key={commentKey}
                 content={commentText}
                 onChange={setCommentText}
-                placeholder="Add a comment..."
+                editable={true}
               />
               <div className="flex justify-end">
-                <Button type="submit" size="sm" disabled={!commentText || commentText === "<p></p>" || commentText === "<p><br></p>"}>
+                <Button type="submit" size="sm" disabled={isCommentEmpty(commentText)}>
                   <Send className="h-3.5 w-3.5 mr-1.5" />
                   Comment
                 </Button>
@@ -735,13 +742,14 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
                   <div key={comment.id} className="rounded-lg bg-muted/50 p-3 group">
                     {editingCommentId === comment.id ? (
                       <div className="space-y-2">
-                        <RichTextEditor
+                        <BlockNoteComment
+                          key={`edit-${comment.id}`}
                           content={editCommentContent}
                           onChange={setEditCommentContent}
-                          placeholder="Edit comment..."
+                          editable={true}
                         />
                         <div className="flex gap-2 justify-end">
-                          <Button size="sm" onClick={() => handleUpdateComment(comment.id)} disabled={!editCommentContent || editCommentContent === "<p></p>" || editCommentContent === "<p><br></p>"}>
+                          <Button size="sm" onClick={() => handleUpdateComment(comment.id)} disabled={isCommentEmpty(editCommentContent)}>
                             Save
                           </Button>
                           <Button size="sm" variant="outline" onClick={cancelEditComment}>
@@ -752,7 +760,9 @@ export function TaskDetail({ taskId }: TaskDetailProps) {
                     ) : (
                       <>
                         <div className="text-sm">
-                          {isHtml(comment.content) ? (
+                          {comment.content.startsWith("[") ? (
+                            <BlockNoteComment content={comment.content} editable={false} />
+                          ) : isHtml(comment.content) ? (
                             <FormattedContent html={comment.content} />
                           ) : (
                             <span className="whitespace-pre-wrap">{comment.content}</span>

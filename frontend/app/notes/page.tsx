@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { Plus, FileText, Search, ArrowLeft } from "lucide-react";
+import { Plus, FileText, Search, ArrowLeft, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useNotes, useCreateNote, useDeleteNote } from "@/lib/hooks/use-notes";
+import { useNotes, useNote, useCreateNote, useDeleteNote } from "@/lib/hooks/use-notes";
 import { NoteEditor } from "@/components/notes/note-editor";
 
 export default function NotesPage() {
@@ -15,9 +15,16 @@ export default function NotesPage() {
   const deleteNote = useDeleteNote();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dismissBanner, setDismissBanner] = useState(false);
+  const { data: selectedNote } = useNote(selectedId);
 
   const notes = data?.items || [];
-  const selected = notes.find((n) => n.id === selectedId);
+  const selected = selectedNote || notes.find((n) => n.id === selectedId);
+
+  const needsMigration = useMemo(
+    () => !dismissBanner && notes.some((n) => n.content && n.content.startsWith("<") && !n.content.startsWith("[")),
+    [notes, dismissBanner]
+  );
 
   const filtered = searchQuery
     ? notes.filter(
@@ -29,7 +36,7 @@ export default function NotesPage() {
 
   const handleCreate = () => {
     createNote.mutate(
-      { title: "Untitled Note", content: "", is_markdown: true },
+      { title: "Untitled Note", content: "" },
       {
         onSuccess: (note) => setSelectedId(note.id),
       }
@@ -103,6 +110,18 @@ export default function NotesPage() {
       </div>
 
       <div className={`flex-1 flex flex-col ${selectedId ? "flex" : "hidden"} md:flex`}>
+        {needsMigration && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 border-b text-xs text-primary">
+            <Info className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1">Some notes need to be migrated to the new BlockNote editor.</span>
+            <a href="/notes/migrate" className="font-medium underline underline-offset-2 hover:text-primary/80">
+              Migrate now
+            </a>
+            <button onClick={() => setDismissBanner(true)} className="ml-1 text-muted-foreground hover:text-foreground">
+              &times;
+            </button>
+          </div>
+        )}
         {selected ? (
           <>
             <div className="md:hidden flex items-center gap-2 px-2 py-1.5 border-b">

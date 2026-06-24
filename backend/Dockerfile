@@ -33,8 +33,6 @@ ENV PATH=/usr/local/bin:$PATH
 # Bootstrap OTel instrumentations
 RUN PIP_ROOT_USER_ACTION=ignore opentelemetry-bootstrap -a install
 
-USER appuser
-
 RUN chmod +x entrypoint.sh
 
 EXPOSE 8000
@@ -42,4 +40,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" || exit 1
 
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/app/entrypoint.sh"]

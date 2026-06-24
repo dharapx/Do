@@ -4,6 +4,7 @@ const nextConfig = {
   images: {
     domains: [],
   },
+  transpilePackages: ["@blocknote", "@mantine", "@shikijs"],
 };
 
 module.exports = nextConfig;

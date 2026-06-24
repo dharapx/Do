@@ -4,7 +4,6 @@ export interface Note {
   id: number;
   title: string;
   content: string;
-  is_markdown: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -12,13 +11,20 @@ export interface Note {
 export interface CreateNoteData {
   title: string;
   content?: string;
-  is_markdown?: boolean;
 }
 
 export interface UpdateNoteData {
   title?: string;
   content?: string;
-  is_markdown?: boolean;
+}
+
+export interface NoteAttachment {
+  id: number;
+  filename: string;
+  mime_type: string;
+  size: number;
+  url: string;
+  created_at: string;
 }
 
 export const notesApi = {
@@ -40,5 +46,11 @@ export const notesApi = {
 
   deleteNote(id: number) {
     return api.delete<void>(`/notes/${id}`);
+  },
+
+  uploadAttachment(noteId: number, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api.post<NoteAttachment>(`/notes/${noteId}/attachments`, formData);
   },
 };

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Plus, FileText, Search, ArrowLeft } from "lucide-react";
+import { Plus, FileText, Search, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +15,7 @@ export default function NotesPage() {
   const deleteNote = useDeleteNote();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isNotesCollapsed, setIsNotesCollapsed] = useState(false);
 
   const notes = data?.items || [];
   const selected = notes.find((n) => n.id === selectedId);
@@ -45,8 +46,8 @@ export default function NotesPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] gap-0">
-      <div className={`w-72 shrink-0 border-r flex flex-col ${selectedId ? "hidden" : "flex"} md:flex`}>
+    <div className="flex h-[calc(100vh-3.5rem)] gap-0 relative">
+      <div className={`shrink-0 border-r flex flex-col transition-all duration-300 relative ${isNotesCollapsed ? 'w-0' : 'w-72'}`}>
         <div className="p-3 border-b space-y-2">
           <Button onClick={handleCreate} className="w-full justify-start gap-2" size="sm">
             <Plus className="h-4 w-4" />
@@ -88,8 +89,11 @@ export default function NotesPage() {
                 >
                   <p className="font-medium truncate">{note.title}</p>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {/* Glimpse of actual note */}
                     {note.content
-                      ? note.content.replace(/<[^>]*>/g, "").trim().slice(0, 120) || "Empty note"
+                      ? note.content.startsWith("[")
+                        ? JSON.parse(note.content).map((b: any) => b.content?.map((c: any) => c.text).join(" ")).join(" ").slice(0, 120)
+                        : note.content.replace(/<[^>]*>/g, "").trim().slice(0, 120)
                       : "Empty note"}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-1">
@@ -101,6 +105,15 @@ export default function NotesPage() {
           )}
         </div>
       </div>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-2 left-2 z-10"
+        onClick={() => setIsNotesCollapsed(!isNotesCollapsed)}
+      >
+        {isNotesCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+      </Button>
 
       <div className={`flex-1 flex flex-col ${selectedId ? "flex" : "hidden"} md:flex`}>
         {selected ? (

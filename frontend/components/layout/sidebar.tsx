@@ -14,7 +14,10 @@ import {
   Sun,
   Moon,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Grid3X3 },
@@ -38,6 +41,7 @@ export function Sidebar({ open, onClose, mobile }: SidebarProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -45,12 +49,17 @@ export function Sidebar({ open, onClose, mobile }: SidebarProps) {
 
   const content = (
     <>
-      <div className="flex h-14 items-center gap-2 border-b px-6">
-        <span className="text-xl font-bold tracking-tight text-accent">do.</span>
-        <span className="text-xs text-muted-foreground">v1.0</span>
+      <div className="flex h-14 items-center justify-between border-b px-4">
+        <div className={cn("flex items-center gap-2", isCollapsed && "hidden")}>
+          <span className="text-xl font-bold tracking-tight text-accent">do.</span>
+          <span className="text-xs text-muted-foreground">v1.0</span>
+        </div>
+        <Button variant="ghost" size="icon" onClick={() => setIsCollapsed(!isCollapsed)} className="h-6 w-6">
+          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </Button>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className={cn("flex-1 space-y-1 px-3 py-4", isCollapsed && "items-center flex flex-col")}>
         {navigation.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
@@ -58,6 +67,7 @@ export function Sidebar({ open, onClose, mobile }: SidebarProps) {
               key={item.name}
               href={item.href}
               onClick={mobile ? onClose : undefined}
+              title={isCollapsed ? item.name : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive
@@ -66,13 +76,13 @@ export function Sidebar({ open, onClose, mobile }: SidebarProps) {
               )}
             >
               <item.icon className="h-4 w-4" />
-              {item.name}
+              {!isCollapsed && item.name}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t px-3 py-2">
+      <div className={cn("border-t px-3 py-2", isCollapsed && "items-center flex flex-col")}>
         <div className="space-y-0.5">
           {bottomNav.map((item) => {
             const isActive = pathname === item.href;
@@ -81,6 +91,7 @@ export function Sidebar({ open, onClose, mobile }: SidebarProps) {
                 key={item.name}
                 href={item.href}
                 onClick={mobile ? onClose : undefined}
+                title={isCollapsed ? item.name : undefined}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   isActive
@@ -89,7 +100,7 @@ export function Sidebar({ open, onClose, mobile }: SidebarProps) {
                 )}
               >
                 <item.icon className="h-4 w-4" />
-                {item.name}
+                {!isCollapsed && item.name}
               </Link>
             );
           })}
@@ -142,7 +153,7 @@ export function Sidebar({ open, onClose, mobile }: SidebarProps) {
   }
 
   return (
-    <aside className="hidden md:flex md:w-60 md:flex-col md:border-r md:bg-card">
+    <aside className={cn("hidden md:flex md:flex-col md:border-r md:bg-card transition-all duration-300", isCollapsed ? "md:w-16" : "md:w-60")}>
       {content}
     </aside>
   );
